@@ -354,6 +354,7 @@ async def givebraincells(
 
 
 @bot.tree.command(name="ghostping", description="Anonymously ghost pings a user.")
+@app_commands.checks.cooldown(1, 3600)  # 1 hour cooldown (3600 seconds)
 async def ghostping_command(interaction: discord.Interaction, target: discord.Member, *, reason: str = ""):
     """
     Anonymously ghost pings a user. The command sends a message
