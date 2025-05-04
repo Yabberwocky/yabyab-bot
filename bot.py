@@ -6,23 +6,22 @@ import os
 import logging
 from flask import Flask
 import threading
-import traceback  # Import traceback
-from discord import app_commands  # Import app_commands
-import random # Import random
-
+import traceback
+from discord import app_commands
+import random
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
-TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Discord settings - Double check these IDs in your Discord server!
 IMAGE_CHANNEL_ID = 1359782718426316840
 DAILY_ROLE_ID = 1368237860326473859
 TEMP_ROLE_ID = 1368238029571100834
-GUILD_ID = 1200476681803137024  # Use the provided Guild ID
+GUILD_ID = 1200476681803137024
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Enable the members intent
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -31,12 +30,9 @@ user_daily_role_times = {}
 
 # --- Logging Setup ---
 logging.basicConfig(
-    level=logging.INFO,  # Set the desired logging level (e.g., INFO, DEBUG, ERROR)
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(),  # Output to console
-        # logging.FileHandler("discord_bot.log"),  # Optionally, log to a file
-    ],
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -46,23 +42,17 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    # This is the response Uptime Robot will see
     return "Discord bot is alive!"
 
 def run_flask():
-    """Runs the Flask web server."""
     try:
-        # Render sets the PORT environment variable
-        port = int(os.environ.get('PORT', 8080)) # Default 8080 for local test
+        port = int(os.environ.get('PORT', 8080))
         logger.info(f"Starting Flask keep-alive server on host 0.0.0.0:{port}")
-        # Use debug=False for production on Render
         app.run(host='0.0.0.0', port=port, debug=False)
     except Exception as e:
         logger.error(f"Flask keep-alive server failed: {e}")
 
 def keep_alive():
-    """Creates and starts the Flask server in a background thread."""
-    # daemon=True ensures the thread exits when the main bot process stops
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     logger.info("Keep-alive thread initiated.")
@@ -80,30 +70,30 @@ brainrot_words = [
     "gyatt",
     "mr. breast"
 ]
-brainrot_messages = []  # Store brainrot messages globally
-brainrot_task = None  # Store the task globally
+brainrot_messages = []
+brainrot_task = None
 
 
 async def stop_brainrot():
     """Stops the brainrot mode and resets the global variable."""
     global brainrot_active
     global brainrot_task
-    global brainrot_messages  # Access the global list
-    if brainrot_task: # Check if the task exists
+    global brainrot_messages
+    if brainrot_task:
         try:
-            brainrot_task.cancel() # Cancel the task
+            brainrot_task.cancel()
         except Exception as e:
             logger.error(f"Error cancelling brainrot task: {e}")
     brainrot_active = False
     brainrot_task = None
-    for msg in brainrot_messages:  # Delete stored messages
+    for msg in brainrot_messages:
         try:
             await msg.delete()
         except discord.NotFound:
             logger.warning(f"Message {msg.id} not found, was probably deleted already.")
         except Exception as e:
             logger.error(f"Error deleting message {msg.id}: {e}")
-    brainrot_messages.clear()  # Clear the list
+    brainrot_messages.clear()
     logger.info("Brainrot mode stopped.")
 
 
@@ -113,45 +103,53 @@ async def brainrot_command(interaction: discord.Interaction):
     """Activates brainrot mode."""
     global brainrot_active
     global brainrot_task
-    global brainrot_messages  # Access the global message list
+    global brainrot_messages
     try:
-        # Check for the daily role here!  Use a helper function
+        # Check for the daily role
         if not await has_daily_role(interaction.user):
-            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            await interaction.response.send_message(
+                "You do not have permission to use this command.",
+                ephemeral=True
+            )
             return
 
         if brainrot_active:
-            await interaction.response.send_message("Brainrot mode is already active!", ephemeral=True)
+            await interaction.response.send_message(
+                "Brainrot mode is already active!",
+                ephemeral=True
+            )
             return
 
         brainrot_active = True
-        # Acknowledge the command *immediately*
-        await interaction.response.defer()  # Add this line!
-        await interaction.followup.send("Brainrot mode activated! Prepare for the cringe...")  # send followup
+        await interaction.response.defer()
 
-        async def send_brainrot_messages():  # helper function
+        async def send_brainrot_messages():
             while brainrot_active:
                 try:
                     random_word = random.choice(brainrot_words)
                     msg = await interaction.channel.send(random_word)
-                    brainrot_messages.append(msg)  # Append message to the list
+                    brainrot_messages.append(msg)
                     await asyncio.sleep(10)
                 except Exception as e:
                     logger.error(f"Error in send_brainrot_messages: {e}")
-                    break # Stop sending messages if there is an error
+                    break
 
-        # Create a new task and store it in the global variable
         brainrot_task = asyncio.create_task(send_brainrot_messages())
 
-        # Schedule the task to stop brainrot after 3 minutes
-        await asyncio.sleep(180)
+        # Use asyncio.sleep *within* the command function.
+        await asyncio.sleep(180)  # 3 minutes
         await stop_brainrot()
-        await interaction.followup.send("Brainrot mode has ended.")  # send followup
+        await interaction.followup.send("Brainrot mode has ended.")
+
     except Exception as e:
         logger.error(f"Error in brainrot_command: {e}")
-        await interaction.response.send_message(
-            "An error occurred while processing this command.", ephemeral=True
-        )
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "An error occurred while processing this command.",
+                ephemeral=True
+            )
+        else:
+            await interaction.followup.send("An error occurred.")
 
 
 
@@ -161,29 +159,27 @@ async def has_daily_role(user: discord.Member) -> bool:
     return daily_role in user.roles
 
 
-
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    guild = bot.get_guild(GUILD_ID)  # Get the guild object.
+    guild = bot.get_guild(GUILD_ID)
     if not guild:
         logger.error(f"Guild with ID {GUILD_ID} not found.")
         return
 
     try:
-        # Clear and sync commands for the specific guild.
         bot.tree.clear_commands(guild=guild)
         await bot.tree.sync(guild=guild)
         logger.info(f'Cleared and synced commands for guild {guild.name} ({guild.id})')
 
-        #Try to sync globally, but this time, after the guild sync
         try:
             await bot.tree.sync()
             logger.info("Successfully synced application commands globally.")
         except Exception as e:
             logger.error(f"Failed to sync application commands globally: {e}")
     except Exception as e:
-        logger.error(f'Failed to sync commands for guild {guild.name} ({guild.id}): {e}\n{traceback.format_exc()}')
+        logger.error(
+            f'Failed to sync commands for guild {guild.name} ({guild.id}): {e}\n{traceback.format_exc()}')
     daily_role_removal_task.start()
 
 
@@ -228,14 +224,16 @@ async def on_message(message):
     # Logic for replying to users with the temporary role
     temp_role_id = 1368238029571100834
     if any(role.id == temp_role_id for role in message.author.roles):
-        response = await message.channel.send(f"{message.author.mention} shut up dumb fuck")
+        response = await message.channel.send(
+            f"{message.author.mention} shut up dumb fuck")
         await asyncio.sleep(5)
         await response.delete()
 
     try:
-        await bot.process_commands(message)  # Important: Keep this line!
+        await bot.process_commands(message)
     except Exception as e:
-        logger.error(f"Error processing command in on_message: {e}\n{traceback.format_exc()}") # Use traceback
+        logger.error(
+            f"Error processing command in on_message: {e}\n{traceback.format_exc()}")
 
 
 @tasks.loop(seconds=60)
@@ -258,7 +256,8 @@ async def daily_role_removal_task():
                 if member and role in member.roles:
                     try:
                         await member.remove_roles(role)
-                        logger.info(f"Removed daily role from {member} (after 12 hours)")
+                        logger.info(
+                            f"Removed daily role from {member} (after 12 hours)")
                     except Exception as e:
                         logger.error(f"Error removing role from {member}: {e}")
 
@@ -272,7 +271,10 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
     try:
         # Use helper function for role check
         if not await has_daily_role(executor):
-            await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+            await interaction.response.send_message(
+                "You don't have permission to use this command.",
+                ephemeral=True
+            )
             return
 
         temp_role = guild.get_role(TEMP_ROLE_ID)
@@ -285,36 +287,56 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
             await user.remove_roles(temp_role)
             logger.info(f"Removed temporary role from {user}")
         else:
-            await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+            await interaction.response.send_message(
+                "Temporary role not found.",
+                ephemeral=True
+            )
     except Exception as e:
-        logger.error(f"Error in takebraincells: {e}\n{traceback.format_exc()}") # Add traceback
-        await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
+        logger.error(
+            f"Error in takebraincells: {e}\n{traceback.format_exc()}")
+        await interaction.response.send_message(
+            "An error occurred while processing this command.",
+            ephemeral=True
+        )
 
 
 
 @bot.tree.command(name="givebraincells", description="Remove the braincell role from someone.")
-async def givebraincells(interaction: discord.Interaction, user: discord.Member):
+async def givebraincells(
+        interaction: discord.Interaction,
+        user: discord.Member):
     """Removes the temporary role from the specified user."""
     executor = interaction.user
     guild = interaction.guild
     try:
         # Use the helper function
         if not await has_daily_role(executor):
-            await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+            await interaction.response.send_message(
+                "You don't have permission to use this command.",
+                ephemeral=True
+            )
             return
 
         temp_role = guild.get_role(TEMP_ROLE_ID)
         if temp_role:
             if temp_role in user.roles:
                 await user.remove_roles(temp_role)
-                await interaction.response.send_message(f"Removed the braincell role from {user.mention}.")
+                await interaction.response.send_message(
+                    f"Removed the braincell role from {user.mention}.")
                 logger.info(f"Removed temporary role from {user}")
             else:
-                await interaction.response.send_message(f"{user.mention} doesn't have the braincell role.", ephemeral=True)
+                await interaction.response.send_message(
+                    f"{user.mention} doesn't have the braincell role.",
+                    ephemeral=True
+                )
         else:
-            await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+            await interaction.response.send_message(
+                "Temporary role not found.",
+                ephemeral=True
+            )
     except Exception as e:
-        logger.error(f"Error in givebraincells: {e}\n{traceback.format_exc()}") # Add traceback
+        logger.error(
+            f"Error in givebraincells: {e}\n{traceback.format_exc()}")
 
 
 
