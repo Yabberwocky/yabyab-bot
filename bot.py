@@ -228,16 +228,19 @@ async def on_message(message):
         guild = message.guild
         user = message.author
         role = guild.get_role(DAILY_ROLE_ID)
-        if role and role not in user.roles:
-            try:
-                await user.add_roles(role)
-                now = datetime.datetime.now(datetime.timezone.utc)
-                user_daily_role_times[user.id] = now
-                logger.info(f"Assigned role {role.name} to {user.name} at {now}")
-            except Exception as e:
-                logger.error(f"Error adding role: {e}")
+        if role:  # Check if the role exists
+            if role not in user.roles:
+                try:
+                    await user.add_roles(role)
+                    now = datetime.datetime.now(datetime.timezone.utc)
+                    user_daily_role_times[user.id] = now
+                    logger.info(f"Assigned role {role.name} to {user.name} at {now}")
+                except Exception as e:
+                    logger.error(f"Error adding role: {e}")
+            else:
+                logger.info(f"User {user.name} already has the daily role.")
         else:
-            logger.info(f"User {user.name} already has the daily role.")
+            logger.error(f"Daily role with ID {DAILY_ROLE_ID} not found in guild {guild.name}.")
 
     # Logic for replying to users with the temporary role
     temp_role_id = 1368238029571100834
