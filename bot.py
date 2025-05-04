@@ -214,6 +214,8 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
     else:
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
+
+
 @bot.tree.command(name="givebraincells", description="Remove the braincell role from someone.")
 async def givebraincells(interaction: discord.Interaction, user: discord.Member):
     """Removes the temporary role from the specified user."""
