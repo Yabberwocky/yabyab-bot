@@ -101,14 +101,27 @@ async def brainrot_command(interaction: discord.Interaction):
             return
 
         brainrot_active = True
-        await interaction.response.send_message("Brainrot mode activated! Prepare for the cringe...")
+        # Acknowledge the command *immediately*
+        await interaction.response.defer()  # Add this line!
+        await interaction.followup.send("Brainrot mode activated! Prepare for the cringe...") #send followup
 
         # Create a new task and store it in the global variable
         brainrot_task = asyncio.create_task(asyncio.sleep(180)) # 3 minutes = 180 seconds
 
+        async def send_brainrot_messages(): #helper function
+            while brainrot_active:
+                random_word = random.choice(brainrot_words)
+                msg = await interaction.channel.send(random_word)
+                brainrot_messages.append(msg) # Append message to the list
+                await asyncio.sleep(10)
+
+        # Run the message sending as a separate task
+        asyncio.create_task(send_brainrot_messages())
+
+        # Schedule the task to stop brainrot after 3 minutes
         await asyncio.sleep(180)
         await stop_brainrot()
-        await interaction.channel.send("Brainrot mode has ended.")
+        await interaction.followup.send("Brainrot mode has ended.") #send followup
     except Exception as e:
         print(f"Error in brainrot_command: {e}")
         if isinstance(e, CommandNotFound):
@@ -272,4 +285,3 @@ if __name__ == "__main__":
     # Make sure your bot's token and startup logic is placed below this line.
     # ---------------------------------------------------------------------
     bot.run(TOKEN)
-
