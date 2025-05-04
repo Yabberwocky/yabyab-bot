@@ -19,6 +19,7 @@ DAILY_ROLE_ID = 1368237860326473859
 TEMP_ROLE_ID = 1368238029571100834
 GUILD_ID = 1200476681803137024
 LOG_CHANNEL_ID = 1362988767367135453  # Added log channel ID
+VIPORIZE_ROLE_ID = 1368644466130550935 # Added VIPORIZE role ID
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -29,6 +30,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Dictionary to store the time when a user received the daily role
 user_daily_role_times = {}
+# Store the original roles of the viporized user
+viporized_users_roles = {}
+
 
 # --- Logging Setup ---
 logging.basicConfig(
@@ -258,14 +262,6 @@ async def on_message(message):
         logger.error(
             f"Error processing command in on_message: {e}\n{traceback.format_exc()}")
 
-    # Check for npc mode and if the message is in a channel where NPC mode is active
-    if npc_mode_active and message.channel.id in npc_channels and message.author != bot.user:
-        # Check for cooldown bypass: if the user replied to the last NPC message
-        if npc_last_response and message.reference and message.reference.message_id == last_npc_message_id:
-            await handle_npc_response(message.channel, bypass_cooldown=True)
-        elif not npc_last_response or (datetime.datetime.now() - npc_last_response).total_seconds() >= npc_cooldown:
-            await handle_npc_response(message.channel, bypass_cooldown=False)  # Pass the channel
-        
 
 
 @tasks.loop(seconds=60)
@@ -523,11 +519,16 @@ async def vip_command(interaction: discord.Interaction):
             value="Stops the NPC mode in this channel. Requires the daily role.",
             inline=False,
         )
+        embed.add_field(
+            name="/viporize",
+            value="Removes all roles from a user and gives the executor the vip role for 2 minutes. Requires the daily role. 10 minute cooldown.",
+            inline=False
+        )
 
         # Daily Role Information
         embed.add_field(
             name="Daily Role",
-            value="The bot automatically assigns the daily role to users who send a message in the designated image channel. This role is required to use the `/brainrot`, `/takebraincells`, and `/givebraincells`, `/ghostping`, `/npc`, and `/npcstop` commands.",
+            value="The bot automatically assigns the daily role to users who send a message in the designated image channel. This role is required to use the `/brainrot`, `/takebraincells`, and `/givebraincells`, `/ghostping`, `/npc`, `/npcstop` and `/viporize` commands.",
             inline=False,
         )
 
@@ -637,7 +638,7 @@ async def handle_npc_response(channel, bypass_cooldown=False):
     try:
         # Define the probabilities for each category
         categories = ["oracle", "trader", "gambler", "titan"]
-        probabilities = [0.35, 0.15, 0.25, 0.25]  # Probabilities must sum to 1
+        probabilities = [0.35, 0.15, 0.25, 0.25]  # Probabilities must sum to1
 
         # Choose a category based on the defined probabilities
         chosen_category = random.choices(categories, probabilities)[0]
@@ -726,6 +727,65 @@ async def npc_stop_command(interaction: discord.Interaction):
             ephemeral=True
         )
 
+
+
+@bot.tree.command(name="viporize", description="Viporize a user for 2 minutes")
+@app_commands.checks.cooldown(1, 600)  # 10 minute cooldown (600 seconds)
+async def viporize_command(interaction: discord.Interaction, target: discord.Member):
+    """
+    Removes all roles from a user and gives the executor the vip role for 2 minutes
+    """
+    executor = interaction.user
+    guild = interaction.guild
+    viporize_role = guild.get_role(VIPORIZE_ROLE_ID)
+
+    if target == executor:
+        await interaction.response.send_message("You cannot viporize yourself!", ephemeral=True)
+        return
+
+    try:
+        # Check for the daily role
+        if not await has_daily_role(executor):
+            await interaction.response.send_message(
+                "You do not have permission to use this command.",
+                ephemeral=True
+            )
+            return
+
+        if not viporize_role:
+            await interaction.response.send_message(
+                f"Viporize role with ID {VIPORIZE_ROLE_ID} not found.",
+                ephemeral=True
+            )
+            return
+
+        # Store the target user's roles
+        viporized_users_roles[target.id] = target.roles
+        roles_to_remove = [role for role in target.roles if role != guild.default_role] # Exclude @everyone role
+        await target.remove_roles(*roles_to_remove)
+        await executor.add_roles(viporize_role)
+
+        await interaction.response.send_message(f"{target.mention} has been viporized!")
+        logger.info(f"{executor.name} viporized {target.name}")
+
+        await asyncio.sleep(120)  # 2 minutes
+
+        # Restore roles and remove viporize role
+        if target.id in viporized_users_roles:
+            await target.add_roles(*viporized_users_roles[target.id])
+            del viporized_users_roles[target.id]
+            await executor.remove_roles(viporize_role)
+            logger.info(f"Restored roles for {target.name} and removed viporize role from {executor.name}")
+        else:
+            await executor.remove_roles(viporize_role)
+            logger.warning(f"Roles for {target.name} were not stored, possibly already restored. Removed viporize role from {executor.name}")
+
+    except Exception as e:
+        logger.error(f"Error in viporize_command: {e}\n{traceback.format_exc()}")
+        await interaction.response.send_message(
+            "An error occurred while processing this command.",
+            ephemeral=True
+        )
 
 
 
