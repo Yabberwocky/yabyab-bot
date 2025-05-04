@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: your-bot-name  # Replace with your desired bot name on Render
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py  # Replace with the name of your Python file (e.g., main.py)
+    envVars:
+      - key: DISCORD_TOKEN
+        fromSecret: DISCORD_TOKEN
+    pythonVersion: 3.9  # Or your preferred Python version
