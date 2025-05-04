@@ -83,7 +83,7 @@ async def brainrot_command(interaction: discord.Interaction):
         return
 
     brainrot_active = True
-    await interaction.response.send_message("Brainrot mode activated! Prepare for the cringe...",ephemeral=True)
+    await interaction.response.send_message("Brainrot mode activated! Prepare for the cringe...")
 
     # Create a new task and store it in the global variable
     brainrot_task = asyncio.create_task(asyncio.sleep(180)) # 3 minutes = 180 seconds
