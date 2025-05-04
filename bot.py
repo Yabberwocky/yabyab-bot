@@ -18,6 +18,7 @@ IMAGE_CHANNEL_ID = 1359782718426316840
 DAILY_ROLE_ID = 1368237860326473859
 TEMP_ROLE_ID = 1368238029571100834
 GUILD_ID = 1200476681803137024
+LOG_CHANNEL_ID = 1362988767367135453  # Added log channel ID
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -349,6 +350,99 @@ async def givebraincells(
     except Exception as e:
         logger.error(
             f"Error in givebraincells: {e}\n{traceback.format_exc()}")
+
+
+
+@bot.tree.command(name="ghostping", description="Anonymously ghost pings a user.")
+async def ghostping_command(interaction: discord.Interaction, target: discord.Member, *, reason: str = ""):
+    """
+    Anonymously ghost pings a user. The command sends a message
+    mentioning the user, then deletes it, so they get a notification
+    but no message is visible.
+
+    Parameters:
+        interaction: The interaction context.
+        target: The user to ghost ping.
+        reason: (Optional) Reason for the ghost ping. This is logged.
+    """
+    try:
+        # Check for the daily role
+        if not await has_daily_role(interaction.user):
+            await interaction.response.send_message(
+                "You do not have permission to use this command.",
+                ephemeral=True
+            )
+            return
+
+        # 1. Send the mention message
+        message = await interaction.channel.send(target.mention)
+
+        # 2. Delete the message
+        await message.delete()
+
+        # 3. Logging the ghost ping
+        log_message = f"Anonymous ghost ping of {target.name} ({target.id}) by {interaction.user.name} ({interaction.user.id})"
+        if reason:
+            log_message += f" with reason: {reason}"
+        logger.info(log_message)
+
+        # 4. Optional: Confirmation in a non-visible way.
+        if interaction.guild:
+            log_channel = bot.get_channel(LOG_CHANNEL_ID)
+            if log_channel:
+                await log_channel.send(f"Ghost pinged {target.mention} anonymously.")
+
+        await interaction.response.send_message("Ghost ping sent.", ephemeral=True)
+
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "I do not have permissions to send messages and/or delete them.",
+            ephemeral=True,
+        )
+        logger.warning(
+            f"Bot lacks permissions to ghost ping in channel {interaction.channel.name} ({interaction.channel.id})"
+        )
+    except discord.NotFound:
+        await interaction.response.send_message(
+            "I could not delete the message. The user will still have been notified.",
+            ephemeral=True,
+        )
+        logger.error("Failed to delete ghost ping message.")
+    except Exception as e:
+        await interaction.response.send_message(
+            "An unexpected error occurred. Check the logs.", ephemeral=True
+        )
+        logger.error(f"Error in ghostping_command: {e}\n{traceback.format_exc()}")
+
+
+
+@bot.event
+async def on_message_delete(self, message: discord.Message):
+    """
+    This event listener is used to detect if a ghost ping was deleted by someone else.
+    """
+    if message.author == self.bot.user:  # If the bot deleted the message, it's normal.
+        return
+    
+    # Check if the message content was a user mention
+    if message.mentions:
+        mentioned_users = message.mentions
+        #basic check
+        logger.warning(f"Possible ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by someone else.")
+        
+        # More robust check (optional, requires message history):
+        try:
+            # Fetch the audit log.  Requires View Audit Log permission.
+            async for entry in message.guild.audit_logs(limit=5, action=discord.AuditLogAction.message_delete):
+                if entry.target == message.author:
+                    #  Deleted by someone else, within a short time frame.
+                    if (entry.created_at - message.created_at).total_seconds() < 5:  # 5 seconds
+                        logger.critical(f"Definite ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by {entry.user}!")
+                        break #important
+        except discord.Forbidden:
+            logger.info("Missing permissions to check audit logs.")
+        except Exception as e:
+            logger.error(f"Error checking audit logs: {e}")
 
 
 
