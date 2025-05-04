@@ -78,6 +78,12 @@ async def brainrot_command(interaction: discord.Interaction):
     global brainrot_active
     global brainrot_task
 
+    # Check for the daily role here!
+    daily_role = discord.utils.get(interaction.guild.roles, id=DAILY_ROLE_ID)
+    if daily_role not in interaction.user.roles:
+        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+        return
+
     if brainrot_active:
         await interaction.response.send_message("Brainrot mode is already active!", ephemeral=True)
         return
@@ -92,6 +98,23 @@ async def brainrot_command(interaction: discord.Interaction):
     await asyncio.sleep(180)
     await stop_brainrot()
     await interaction.channel.send("Brainrot mode has ended.") #send message to the channel where the command was used.
+
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
+    try:
+        #  Replace YOUR_GUILD_ID with your server's ID
+        guild_id = 1200476681803137024  # <----------------------
+        guild = discord.Object(id=guild_id)
+        bot.tree.copy_global_to(guild=guild)  # Copy global commands to the guild
+        synced = await bot.tree.sync(guild=guild) # Sync to a specific guild
+        print(f'Synced {len(synced)} command(s) to guild {guild_id}')
+    except Exception as e:
+        print(f'Failed to sync commands: {e}')
+        print(f"Error: {e}")
+    daily_role_removal_task.start()
+
 
 
 @bot.event
