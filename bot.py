@@ -3,6 +3,8 @@ from discord.ext import commands, tasks
 import asyncio
 import datetime
 import os
+import threading
+from flask import Flask
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
 TOKEN = os.getenv("DISCORD_TOKEN")  #  Ensure this is set in Render!
@@ -20,6 +22,33 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Dictionary to store the time when a user received the daily role
 user_daily_role_times = {}
+
+# --- Flask App (Keep Alive) ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    # This is the response Uptime Robot will see
+    return "Discord bot is alive!"
+
+def run_flask():
+    """Runs the Flask web server."""
+    try:
+        # Render sets the PORT environment variable
+        port = int(os.environ.get('PORT', 8080)) # Default 8080 for local test
+        print(f"Starting Flask keep-alive server on host 0.0.0.0:{port}")
+        # Use debug=False for production on Render
+        app.run(host='0.0.0.0', port=port, debug=False)
+    except Exception as e:
+        print(f"Flask keep-alive server failed: {e}")
+
+def keep_alive():
+    """Creates and starts the Flask server in a background thread."""
+    # daemon=True ensures the thread exits when the main bot process stops
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("Keep-alive thread initiated.")
+
 
 
 @bot.event
@@ -126,4 +155,12 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
 
-bot.run(TOKEN)
+
+if __name__ == "__main__":
+    # Start the keep-alive server BEFORE starting the bot
+    keep_alive()
+
+    # --- YOUR DISCORD BOT INITIALIZATION AND bot.run() CALL GOES HERE ---
+    # Make sure your bot's token and startup logic is placed below this line.
+    # ---------------------------------------------------------------------
+    bot.run(TOKEN)
