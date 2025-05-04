@@ -9,8 +9,8 @@ import os
 TOKEN = os.getenv("DISCORD_TOKEN") # or "YOUR_BOT_TOKEN_HERE"
 
 # Discord settings
-IMAGE_CHANNEL_ID = 1359782718426316840  # Channel to post images
-DAILY_ROLE_ID = 1368237860326473859    # Role to assign on image upload
+IMAGE_CHANNEL_ID = 1359782718426316840  # Channel to post images (now any message)
+DAILY_ROLE_ID = 1368237860326473859    # Role to assign on message
 TEMP_ROLE_ID = 1368238029571100834     # Temporary role for /takebraincells
 
 intents = discord.Intents.default()
@@ -21,18 +21,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Dictionary to store the time when a user received the daily role
 user_daily_role_times = {}
-
-# List of image MIME types to check
-IMAGE_MIME_TYPES = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/bmp',
-    'image/webp',
-    'image/tiff',
-    'image/heic',  # Add HEIC support
-    'image/heif',  # Add HEIF support
-]
 
 
 @bot.event
@@ -50,19 +38,17 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    # Logic for assigning role on image upload
-    if message.channel.id == IMAGE_CHANNEL_ID and message.attachments:
-        for attachment in message.attachments:
-            if attachment.content_type in IMAGE_MIME_TYPES:
-                guild = message.guild
-                user = message.author
-                role = guild.get_role(DAILY_ROLE_ID)
-                if role and role not in user.roles:
-                    await user.add_roles(role)
-                    now = datetime.datetime.now(datetime.timezone.utc)
-                    user_daily_role_times[user.id] = now
-                    print(f"Assigned role to {user} at {now}")
-                break
+    # Logic for assigning role on any message in the specified channel
+    if message.channel.id == IMAGE_CHANNEL_ID:
+        guild = message.guild
+        user = message.author
+        role = guild.get_role(DAILY_ROLE_ID)
+        if role and role not in user.roles:
+            await user.add_roles(role)
+            now = datetime.datetime.now(datetime.timezone.utc)
+            user_daily_role_times[user.id] = now
+            print(f"Assigned role to {user} at {now}")
+
     await bot.process_commands(message)
 
 @bot.event
@@ -124,4 +110,3 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
 bot.run(TOKEN)
-
