@@ -154,6 +154,29 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
     else:
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
+@bot.tree.command(name="givebraincells", description="Remove the braincell role from someone.")
+async def givebraincells(interaction: discord.Interaction, user: discord.Member):
+    """Removes the temporary role from the specified user."""
+    executor = interaction.user
+    guild = interaction.guild
+
+    # Check if the executor has the required role to use this command
+    required_role = guild.get_role(DAILY_ROLE_ID)
+    if required_role not in executor.roles:
+        await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+        return
+
+    temp_role = guild.get_role(TEMP_ROLE_ID)
+    if temp_role:
+        if temp_role in user.roles:
+            await user.remove_roles(temp_role)
+            await interaction.response.send_message(f"Removed the braincell role from {user.mention}.")
+            print(f"Removed temporary role from {user}")
+        else:
+            await interaction.response.send_message(f"{user.mention} doesn't have the braincell role.", ephemeral=True)
+    else:
+        await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+
 
 
 if __name__ == "__main__":
