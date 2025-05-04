@@ -37,43 +37,36 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    print(f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})") #ADDED
+    print(
+        f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})")  # ADDED
 
     if message.author.bot:
         print("Message author is a bot, ignoring.")
         return
 
+    # Logic for assigning role on any message in the specified channel
     if message.channel.id == IMAGE_CHANNEL_ID:
-        print("Message is in the correct channel.") #ADDED
+        print("Message is in the correct channel.")  # ADDED
         guild = message.guild
         user = message.author
         role = guild.get_role(DAILY_ROLE_ID)
         if role:
-            print(f"Found role: {role.name} (Role ID: {role.id})") #ADDED
+            print(f"Found role: {role.name} (Role ID: {role.id})")  # ADDED
             if role not in user.roles:
-                print(f"User {user.name} (User ID: {user.id}) does not have the role, adding it.") #ADDED
+                print(
+                    f"User {user.name} (User ID: {user.id}) does not have the role, adding it.")  # ADDED
                 try:
                     await user.add_roles(role)
                     now = datetime.datetime.now(datetime.timezone.utc)
                     user_daily_role_times[user.id] = now
                     print(f"Assigned role {role.name} to {user.name} at {now}")
                 except Exception as e:
-                    print(f"Error adding role: {e}") #ADDED
+                    print(f"Error adding role: {e}")  # ADDED
+                    print(f"Failed to add role.  Error: {e}") # IMPROVED ERROR
             else:
-                print(f"User {user.name} already has the role.") #ADDED
+                print(f"User {user.name} already has the role.")  # ADDED
         else:
-            print(f"Role with ID {DAILY_ROLE_ID} not found in guild!") #ADDED
-    else:
-        print(f"Message is not in the correct channel.  Expected channel ID: {IMAGE_CHANNEL_ID}") #ADDED
-
-    await bot.process_commands(message)  #  Important:  Keep this line!
-
-
-
-@bot.event
-async def on_message(message): # duplicate definition, but исправлено ниже.
-    if message.author.bot:
-        return
+            print(f"Role with ID {DAILY_ROLE_ID} not found in guild!")  # ADDED
 
     # Logic for replying to users with the temporary role
     temp_role_id = 1368238029571100834
@@ -82,7 +75,8 @@ async def on_message(message): # duplicate definition, but исправлено 
         await asyncio.sleep(5)
         await response.delete()
 
-    await bot.process_commands(message) #duplicate
+    await bot.process_commands(message)  # Important: Keep this line!
+
 
 
 
@@ -132,6 +126,4 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
 
-
-#Fixing the duplicate on_message definitions.
 bot.run(TOKEN)
