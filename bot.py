@@ -6,6 +6,7 @@ import os
 import logging
 from flask import Flask
 import threading
+import traceback # Import traceback
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
 TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
@@ -84,6 +85,11 @@ async def stop_brainrot():
     global brainrot_active
     global brainrot_task
     global brainrot_messages  # Access the global list
+    if brainrot_task: # Check if the task exists
+        try:
+            brainrot_task.cancel() # Cancel the task
+        except Exception as e:
+            logger.error(f"Error cancelling brainrot task: {e}")
     brainrot_active = False
     brainrot_task = None
     for msg in brainrot_messages:  # Delete stored messages
@@ -95,6 +101,7 @@ async def stop_brainrot():
             logger.error(f"Error deleting message {msg.id}: {e}")
     brainrot_messages.clear()  # Clear the list
     logger.info("Brainrot mode stopped.")
+
 
 
 @bot.tree.command(name="brainrot", description="Activates brainrot mode for 3 minutes.")
@@ -118,18 +125,19 @@ async def brainrot_command(interaction: discord.Interaction):
         await interaction.response.defer()  # Add this line!
         await interaction.followup.send("Brainrot mode activated! Prepare for the cringe...")  # send followup
 
-        # Create a new task and store it in the global variable
-        brainrot_task = asyncio.create_task(asyncio.sleep(180))  # 3 minutes = 180 seconds
-
         async def send_brainrot_messages():  # helper function
             while brainrot_active:
-                random_word = random.choice(brainrot_words)
-                msg = await interaction.channel.send(random_word)
-                brainrot_messages.append(msg)  # Append message to the list
-                await asyncio.sleep(10)
+                try:
+                    random_word = random.choice(brainrot_words)
+                    msg = await interaction.channel.send(random_word)
+                    brainrot_messages.append(msg)  # Append message to the list
+                    await asyncio.sleep(10)
+                except Exception as e:
+                    logger.error(f"Error in send_brainrot_messages: {e}")
+                    break # Stop sending messages if there is an error
 
-        # Run the message sending as a separate task
-        asyncio.create_task(send_brainrot_messages())
+        # Create a new task and store it in the global variable
+        brainrot_task = asyncio.create_task(send_brainrot_messages())
 
         # Schedule the task to stop brainrot after 3 minutes
         await asyncio.sleep(180)
@@ -204,9 +212,10 @@ async def on_message(message):
         await asyncio.sleep(5)
         await response.delete()
 
-    await bot.process_commands(message)  # Important: Keep this line!
-
-
+    try:
+        await bot.process_commands(message)  # Important: Keep this line!
+    except Exception as e:
+        logger.error(f"Error processing command in on_message: {e}\n{traceback.format_exc()}") # Use traceback
 
 
 @tasks.loop(seconds=60)
@@ -258,7 +267,7 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
         else:
             await interaction.response.send_message("Temporary role not found.", ephemeral=True)
     except Exception as e:
-        logger.error(f"Error in takebraincells: {e}")
+        logger.error(f"Error in takebraincells: {e}\n{traceback.format_exc()}") # Add traceback
         await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
 
 
@@ -285,7 +294,7 @@ async def givebraincells(interaction: discord.Interaction, user: discord.Member)
         else:
             await interaction.response.send_message("Temporary role not found.", ephemeral=True)
     except Exception as e:
-        logger.error(f"Error in givebraincells: {e}")
+        logger.error(f"Error in givebraincells: {e}\n{traceback.format_exc()") # Add traceback
         await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
 
 
