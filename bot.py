@@ -8,6 +8,7 @@ from flask import Flask
 import threading
 import traceback  # Import traceback
 from discord import app_commands  # Import app_commands
+import random # Import random
 
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
@@ -199,6 +200,15 @@ async def on_message(message):
     if message.author.bot:
         logger.info("Message author is a bot, ignoring.")
         return
+
+    # Check if brainrot mode is active
+    if brainrot_active:
+        try:
+            random_word = random.choice(brainrot_words)
+            msg = await message.channel.send(random_word)
+            brainrot_messages.append(msg)
+        except Exception as e:
+            logger.error(f"Error sending brainrot message: {e}")
 
     # Logic for assigning role on any message in the specified channel
     if message.channel.id == IMAGE_CHANNEL_ID:
