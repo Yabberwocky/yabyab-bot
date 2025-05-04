@@ -294,7 +294,7 @@ async def givebraincells(interaction: discord.Interaction, user: discord.Member)
         else:
             await interaction.response.send_message("Temporary role not found.", ephemeral=True)
     except Exception as e:
-        logger.error(f"Error in givebraincells: {e}\n{traceback.format_exc()") # Add traceback
+        logger.error(f"Error in givebraincells: {e}\n{traceback.format_exc()}") # Add traceback
         await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
 
 
