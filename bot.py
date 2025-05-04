@@ -97,6 +97,16 @@ async def stop_brainrot():
     logger.info("Brainrot mode stopped.")
 
 
+def randomize_caps(word):
+    """Randomly capitalize letters in a word."""
+    result = ""
+    for char in word:
+        if random.choice([True, False]):
+            result += char.upper()
+        else:
+            result += char.lower()
+    return result
+
 
 @bot.tree.command(name="brainrot", description="Activates brainrot mode for 3 minutes.")
 async def brainrot_command(interaction: discord.Interaction):
@@ -127,6 +137,7 @@ async def brainrot_command(interaction: discord.Interaction):
             while brainrot_active:
                 try:
                     random_word = random.choice(brainrot_words)
+                    random_word = randomize_caps(random_word)  # Capitalize randomly
                     msg = await interaction.channel.send(random_word)
                     brainrot_messages.append(msg)
                     await asyncio.sleep(10)
@@ -201,6 +212,7 @@ async def on_message(message):
     if brainrot_active:
         try:
             random_word = random.choice(brainrot_words)
+            random_word = randomize_caps(random_word)  # Capitalize randomly
             msg = await message.channel.send(random_word)
             brainrot_messages.append(msg)
         except Exception as e:
