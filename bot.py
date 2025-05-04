@@ -5,6 +5,7 @@ import datetime
 import os
 import threading
 from flask import Flask
+import random
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
 TOKEN = os.getenv("DISCORD_TOKEN")  #  Ensure this is set in Render!
@@ -49,23 +50,55 @@ def keep_alive():
     flask_thread.start()
     print("Keep-alive thread initiated.")
 
+# --- Brainrot Feature ---
+brainrot_active = False
+brainrot_words = [
+    "skibidi",
+    "ohio",
+    "sigma",
+    "rizz",
+    "alpha",
+    "andrew tate",
+    "gyatt",
+    "mr. breast"
+]
+brainrot_task = None  # Store the task globally
 
+async def stop_brainrot():
+    """Stops the brainrot mode and resets the global variable."""
+    global brainrot_active
+    global brainrot_task
+    brainrot_active = False
+    brainrot_task = None #clear the task
+    print("Brainrot mode stopped.")
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    try:
-        synced = await bot.tree.sync()
-        print(f'Synced {len(synced)} command(s)')
-    except Exception as e:
-        print(f'Failed to sync commands: {e}')
-        print(f"Error: {e}")  # Print the full error
-    daily_role_removal_task.start()
+@bot.tree.command(name="brainrot", description="Activates brainrot mode for 3 minutes.")
+async def brainrot_command(interaction: discord.Interaction):
+    """Activates brainrot mode."""
+    global brainrot_active
+    global brainrot_task
 
+    if brainrot_active:
+        await interaction.response.send_message("Brainrot mode is already active!", ephemeral=True)
+        return
+
+    brainrot_active = True
+    await interaction.response.send_message("Brainrot mode activated! Prepare for the cringe...",ephemeral=True)
+
+    # Create a new task and store it in the global variable
+    brainrot_task = asyncio.create_task(asyncio.sleep(180)) # 3 minutes = 180 seconds
+
+    # Schedule the task to stop brainrot after 3 minutes
+    await asyncio.sleep(180)
+    await stop_brainrot()
+    await interaction.channel.send("Brainrot mode has ended.") #send message to the channel where the command was used.
 
 
 @bot.event
 async def on_message(message):
+    global brainrot_active
+    global brainrot_words
+
     print(
         f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})")  # ADDED
 
@@ -103,6 +136,10 @@ async def on_message(message):
         response = await message.channel.send(f"{message.author.mention} shut up dumb fuck")
         await asyncio.sleep(5)
         await response.delete()
+
+    if brainrot_active:
+        random_word = random.choice(brainrot_words)
+        await message.channel.send(random_word)
 
     await bot.process_commands(message)  # Important: Keep this line!
 
