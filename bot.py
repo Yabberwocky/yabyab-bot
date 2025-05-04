@@ -126,27 +126,19 @@ async def on_message(message):
 
     # Logic for assigning role on any message in the specified channel
     if message.channel.id == IMAGE_CHANNEL_ID:
-        print("Message is in the correct channel.")  # ADDED
+        print("Message is in the correct channel.")
         guild = message.guild
         user = message.author
         role = guild.get_role(DAILY_ROLE_ID)
-        if role:
-            print(f"Found role: {role.name} (Role ID: {role.id})")  # ADDED
-            if role not in user.roles:
-                print(
-                    f"User {user.name} (User ID: {user.id}) does not have the role, adding it.")  # ADDED
-                try:
-                    await user.add_roles(role)
-                    now = datetime.datetime.now(datetime.timezone.utc)
-                    user_daily_role_times[user.id] = now
-                    print(f"Assigned role {role.name} to {user.name} at {now}")
-                except Exception as e:
-                    print(f"Error adding role: {e}")  # ADDED
-                    print(f"Failed to add role.  Error: {e}") # IMPROVED ERROR
-            else:
-                print(f"User {user.name} already has the role.")  # ADDED
-        else:
-            print(f"Role with ID {DAILY_ROLE_ID} not found in guild!")  # ADDED
+        if role and role not in user.roles:
+            try:
+                await user.add_roles(role)
+                now = datetime.datetime.now(datetime.timezone.utc)
+                user_daily_role_times[user.id] = now
+                print(f"Assigned role {role.name} to {user.name} at {now}")
+            except Exception as e:
+                print(f"Error adding role: {e}")
+                print(f"Failed to add role.  Error: {e}")
 
     # Logic for replying to users with the temporary role
     temp_role_id = 1368238029571100834
@@ -182,8 +174,12 @@ async def daily_role_removal_task():
             for user_id in users_to_remove:
                 member = guild.get_member(user_id)
                 if member and role in member.roles:
-                    await member.remove_roles(role)
-                    print(f"Removed daily role from {member} (after 12 hours)")
+                    try:
+                        await member.remove_roles(role)
+                        print(f"Removed daily role from {member} (after 12 hours)")
+                    except Exception as e:
+                        print(f"Error removing role from {member}: {e}") #error message
+                        pass  # Consider more robust error handling here.  You might want to log this to a file or a Discord channel.
 
 
 
