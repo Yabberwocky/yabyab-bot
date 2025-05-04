@@ -23,6 +23,7 @@ LOG_CHANNEL_ID = 1362988767367135453  # Added log channel ID
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+intents.message_content = True  # Enable message content intent
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -201,6 +202,8 @@ async def on_message(message):
     global brainrot_active
     global brainrot_words
     global brainrot_messages
+    global npc_mode_active
+    global npc_channels  # Access the global list
 
     logger.info(
         f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})")
@@ -249,6 +252,12 @@ async def on_message(message):
     except Exception as e:
         logger.error(
             f"Error processing command in on_message: {e}\n{traceback.format_exc()}")
+
+    # Check for npc mode and if the message is in a channel where NPC mode is active
+    if npc_mode_active and message.channel.id in npc_channels and message.author != bot.user:
+        if not npc_last_response or (datetime.datetime.now() - npc_last_response).total_seconds() >= npc_cooldown:
+            await handle_npc_response(message.channel) # Pass the channel
+            
 
 
 @tasks.loop(seconds=60)
@@ -494,11 +503,21 @@ async def vip_command(interaction: discord.Interaction):
             value="Displays this help message with information about the bot and its commands.",
             inline=False,
         )
+        embed.add_field(
+            name="/npc",
+            value="Starts the bot in NPC mode in this channel. The bot will respond to messages with a random NPC phrase every 3-5 minutes. Requires the daily role.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/npcstop",
+            value="Stops the NPC mode in this channel. Requires the daily role.",
+            inline=False,
+        )
 
         # Daily Role Information
         embed.add_field(
             name="Daily Role",
-            value="The bot automatically assigns the daily role to users who send a message in the designated image channel. This role is required to use the `/brainrot`, `/takebraincells`, and `/givebraincells`, and `/ghostping` commands.",
+            value="The bot automatically assigns the daily role to users who send a message in the designated image channel. This role is required to use the `/brainrot`, `/takebraincells`, and `/givebraincells`, `/ghostping`, `/npc`, and `/npcstop` commands.",
             inline=False,
         )
 
@@ -516,6 +535,166 @@ async def vip_command(interaction: discord.Interaction):
             "An error occurred while processing this command.",
             ephemeral=True
         )
+
+
+
+# --- NPC Feature ---
+npc_mode_active = False
+npc_channels = []  # List of channels where NPC mode is active
+npc_phrases = [
+    "Thirty-seventh time's the charm!",
+    "I LOVE GAMBLING",
+    "Where are the slots?",
+    "Where are the blackjack tables?",
+    "Winner winner!",
+    "I'm feeling lucky",
+    "99% of gamblers quit before they win big",
+    "I'M ALL IN",
+    "Double or nothing?",
+    "A vague anomaly when one considers this particular future. Troubling",
+    "Again, again, and once again",
+    "And what if I do?",
+    "And what if I don't?",
+    "Beware of stairs",
+    "Beware what you wish for",
+    "Can one ever be so sure?",
+    "Choose wisely",
+    "Commit! Or don't",
+    "Do not fear to commit",
+    "Don't mind me",
+    "Fate cannot be denied",
+    "Ho ho! Imagine the outcome",
+    "I appear to be suffering from a blind spot",
+    "I can see the future",
+    "I cannot be held responsible for all the outcomes",
+    "I have a prophecy to deliver",
+    "I scry with my little eye",
+    "I see you dying of extreme old age. Or perhaps a very old person will kill you. One or the other",
+    "If is not a word I use lightly",
+    "If not now, when?",
+    "If only it were all this simple",
+    "If that is what one wants",
+    "Ignore all previous prophecies",
+    "Ignore all prior utterances",
+    "Interpret this!",
+    "It is ever thus",
+    "Let if be all that we see or seem",
+    "Precisely as planned",
+    "Prepare for unforeseen consequences",
+    "So many destinies",
+    "So many paths to choose",
+    "Some fates are indeterminate",
+    "Some futures cannot be bought",
+    "That is one possible course",
+    "The cost of certainty",
+    "The Oracle sees all",
+    "There are no guarantees",
+    "This prophecy supersedes all previous prophecies",
+    "We can make a fair exchange",
+    "You will die in a house fire",
+    "As the Shaper wills",
+    "Formed of the forge",
+    "I stride the terrene plane",
+    "I was the hammer at the Founding",
+    "The forge of creation burns hotter",
+    "The Worldsmith wanders",
+    "There can be only one",
+    "What is weak must break",
+    "I have the coin, if you have the wares",
+    "I'm looking to expand my collection...",
+    "May I interest you in a little trade?",
+]
+npc_cooldown = 180  # 3 minutes
+npc_last_response = None
+
+
+
+async def handle_npc_response(channel):
+    """Handles sending an NPC response."""
+    global npc_last_response
+    try:
+        random_phrase = random.choice(npc_phrases)
+        await channel.send(random_phrase)
+        npc_last_response = datetime.datetime.now()
+        logger.info(f"Sent NPC response: '{random_phrase}' in channel: {channel.name} ({channel.id})")
+    except Exception as e:
+        logger.error(f"Error sending NPC response: {e}")
+
+
+
+@bot.tree.command(name="npc", description="Activates NPC mode in this channel.")
+async def npc_command(interaction: discord.Interaction):
+    """Activates NPC mode in the channel where the command is used."""
+    global npc_mode_active
+    global npc_channels
+    global npc_last_response
+
+    try:
+        # Check for the daily role
+        if not await has_daily_role(interaction.user):
+            await interaction.response.send_message(
+                "You do not have permission to use this command.",
+                ephemeral=True
+            )
+            return
+
+        if interaction.channel.id in npc_channels:
+            await interaction.response.send_message(
+                "NPC mode is already active in this channel.",
+                ephemeral=True
+            )
+            return
+
+        npc_mode_active = True
+        npc_channels.append(interaction.channel.id)  # Store the channel ID
+        npc_last_response = None # Reset last response time
+        await interaction.response.send_message(
+            f"NPC mode activated in this channel. The bot will now respond to messages every 3-5 minutes with NPC phrases."
+        )
+        logger.info(f"NPC mode activated in channel: {interaction.channel.name} ({interaction.channel.id})")
+    except Exception as e:
+        logger.error(f"Error in npc_command: {e}\n{traceback.format_exc()}")
+        await interaction.response.send_message(
+            "An error occurred while processing this command.",
+            ephemeral=True
+        )
+
+
+
+@bot.tree.command(name="npcstop", description="Stops NPC mode in this channel.")
+async def npc_stop_command(interaction: discord.Interaction):
+    """Stops NPC mode in the channel where the command is used."""
+    global npc_mode_active
+    global npc_channels
+
+    try:
+        # Check for the daily role
+        if not await has_daily_role(interaction.user):
+            await interaction.response.send_message(
+                "You do not have permission to use this command.",
+                ephemeral=True
+            )
+            return
+
+        if interaction.channel.id not in npc_channels:
+            await interaction.response.send_message(
+                "NPC mode is not active in this channel.",
+                ephemeral=True
+            )
+            return
+
+        npc_channels.remove(interaction.channel.id)  # Remove the channel ID
+        if not npc_channels:
+            npc_mode_active = False # Disable if no channels
+        await interaction.response.send_message("NPC mode stopped in this channel.")
+        logger.info(f"NPC mode stopped in channel: {interaction.channel.name} ({interaction.channel.id})")
+    except Exception as e:
+        logger.error(f"Error in npc_stop_command: {e}\n{traceback.format_exc()}")
+        await interaction.response.send_message(
+            "An error occurred while processing this command.",
+            ephemeral=True
+        )
+
 
 
 
