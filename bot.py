@@ -7,7 +7,7 @@ import logging
 from flask import Flask
 import threading
 import traceback  # Import traceback
-from discord import app_commands #Import app_commands
+from discord import app_commands  # Import app_commands
 
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
@@ -17,6 +17,7 @@ TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
 IMAGE_CHANNEL_ID = 1359782718426316840
 DAILY_ROLE_ID = 1368237860326473859
 TEMP_ROLE_ID = 1368238029571100834
+GUILD_ID = 1200476681803137024  # Use the provided Guild ID
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -163,19 +164,26 @@ async def has_daily_role(user: discord.Member) -> bool:
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
+    guild = bot.get_guild(GUILD_ID)  # Get the guild object.
+    if not guild:
+        logger.error(f"Guild with ID {GUILD_ID} not found.")
+        return
+
     try:
-        # Clear all global commands first
-        bot.tree.clear_commands(guild=None)  # Pass None to clear global commands
-        await bot.tree.sync()  # Sync globally after clearing
-        logger.info(f'Cleared and synced all commands globally')
+        # Clear and sync commands for the specific guild.
+        bot.tree.clear_commands(guild=guild)
+        await bot.tree.sync(guild=guild)
+        logger.info(f'Cleared and synced commands for guild {guild.name} ({guild.id})')
+
+        #Try to sync globally, but this time, after the guild sync
+        try:
+            await bot.tree.sync()
+            logger.info("Successfully synced application commands globally.")
+        except Exception as e:
+            logger.error(f"Failed to sync application commands globally: {e}")
     except Exception as e:
-        logger.error(f'Failed to sync commands: {e}')
+        logger.error(f'Failed to sync commands for guild {guild.name} ({guild.id}): {e}\n{traceback.format_exc()}')
     daily_role_removal_task.start()
-    try:
-        await bot.tree.sync()
-        logger.info("Successfully synced application commands.")
-    except Exception as e:
-        logger.error(f"Failed to sync application commands: {e}")
 
 
 
