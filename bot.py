@@ -447,6 +447,76 @@ async def on_message_delete(self, message: discord.Message):
 
 
 
+@bot.tree.command(name="vip", description="Displays information about the bot and its commands.")
+async def vip_command(interaction: discord.Interaction):
+    """
+    Displays information about the bot and its commands.
+    """
+    try:
+        embed = discord.Embed(
+            title="Bot Information and Commands",
+            description="Here's a quick guide to using this bot:",
+            color=0x00ff00,  # Green color
+        )
+
+        # General Bot Information
+        embed.add_field(
+            name="About the Bot",
+            value="This bot is designed to manage server roles, handle specific channel interactions, and provide fun commands like brainrot mode and ghost pinging.",
+            inline=False,
+        )
+
+        # Command Information - Add all commands
+        embed.add_field(
+            name="/brainrot",
+            value="Activates brainrot mode for 3 minutes. During this time, the bot will send random 'brainrot' words in the channel.  Requires the daily role.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/takebraincells",
+            value="Gives a user the 'braincell' role for 5 minutes. Requires the daily role.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/givebraincells",
+            value="Removes the 'braincell' role from a user. Requires the daily role.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/ghostping",
+            value="Anonymously pings a user by mentioning them and then deleting the message.  Has a 1-hour cooldown. Requires the daily role.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/vip",
+            value="Displays this help message with information about the bot and its commands.",
+            inline=False,
+        )
+
+        # Daily Role Information
+        embed.add_field(
+            name="Daily Role",
+            value="The bot automatically assigns the daily role to users who send a message in the designated image channel. This role is required to use the `/brainrot`, `/takebraincells`, and `/givebraincells`, and `/ghostping` commands.",
+            inline=False,
+        )
+
+        # Channel Information
+        embed.add_field(
+            name="Image Channel",
+            value=f"Sending a message in the channel with the ID {IMAGE_CHANNEL_ID} will automatically grant you the daily role.",
+            inline=False,
+        )
+
+        await interaction.response.send_message(embed=embed)
+    except Exception as e:
+        logger.error(f"Error in vip_command: {e}\n{traceback.format_exc()}")
+        await interaction.response.send_message(
+            "An error occurred while processing this command.",
+            ephemeral=True
+        )
+
+
+
 if __name__ == "__main__":
     # Start the keep-alive server BEFORE starting the bot
     keep_alive()
