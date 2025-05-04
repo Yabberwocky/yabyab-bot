@@ -233,6 +233,8 @@ async def on_message(message):
                 logger.info(f"Assigned role {role.name} to {user.name} at {now}")
             except Exception as e:
                 logger.error(f"Error adding role: {e}")
+        else:
+            logger.info(f"User {user.name} already has the daily role.")
 
     # Logic for replying to users with the temporary role
     temp_role_id = 1368238029571100834
