@@ -104,12 +104,9 @@ async def brainrot_command(interaction: discord.Interaction):
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     try:
-        #  Replace YOUR_GUILD_ID with your server's ID
-        guild_id = 1200476681803137024  # <----------------------
-        guild = discord.Object(id=guild_id)
-        bot.tree.copy_global_to(guild=guild)  # Copy global commands to the guild
-        synced = await bot.tree.sync(guild=guild) # Sync to a specific guild
-        print(f'Synced {len(synced)} command(s) to guild {guild_id}')
+        # Remove the guild parameter to sync globally
+        synced = await bot.tree.sync() # Sync globally
+        print(f'Synced {len(synced)} command(s) globally')
     except Exception as e:
         print(f'Failed to sync commands: {e}')
         print(f"Error: {e}")
