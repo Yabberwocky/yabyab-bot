@@ -22,6 +22,19 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Dictionary to store the time when a user received the daily role
 user_daily_role_times = {}
 
+# List of image MIME types to check
+IMAGE_MIME_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/bmp',
+    'image/webp',
+    'image/tiff',
+    'image/heic',  # Add HEIC support
+    'image/heif',  # Add HEIF support
+]
+
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
@@ -40,7 +53,7 @@ async def on_message(message):
     # Logic for assigning role on image upload
     if message.channel.id == IMAGE_CHANNEL_ID and message.attachments:
         for attachment in message.attachments:
-            if attachment.content_type and attachment.content_type.startswith('image'):
+            if attachment.content_type in IMAGE_MIME_TYPES:
                 guild = message.guild
                 user = message.author
                 role = guild.get_role(DAILY_ROLE_ID)
