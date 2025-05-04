@@ -5,7 +5,7 @@ import datetime
 import os
 from flask import Flask
 import threading  # Import the threading module
-import random # Import random
+import random  # Import random
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
 TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
@@ -77,27 +77,31 @@ async def brainrot_command(interaction: discord.Interaction):
     """Activates brainrot mode."""
     global brainrot_active
     global brainrot_task
+    try: # Add try and except
+        # Check for the daily role here!
+        daily_role = discord.utils.get(interaction.guild.roles, id=DAILY_ROLE_ID)
+        if daily_role not in interaction.user.roles:
+            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            return
 
-    # Check for the daily role here!
-    daily_role = discord.utils.get(interaction.guild.roles, id=DAILY_ROLE_ID)
-    if daily_role not in interaction.user.roles:
-        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
-        return
+        if brainrot_active:
+            await interaction.response.send_message("Brainrot mode is already active!", ephemeral=True)
+            return
 
-    if brainrot_active:
-        await interaction.response.send_message("Brainrot mode is already active!", ephemeral=True)
-        return
+        brainrot_active = True
+        await interaction.response.send_message("Brainrot mode activated! Prepare for the cringe...")
 
-    brainrot_active = True
-    await interaction.response.send_message("Brainrot mode activated! Prepare for the cringe...")
+        # Create a new task and store it in the global variable
+        brainrot_task = asyncio.create_task(asyncio.sleep(180)) # 3 minutes = 180 seconds
 
-    # Create a new task and store it in the global variable
-    brainrot_task = asyncio.create_task(asyncio.sleep(180)) # 3 minutes = 180 seconds
+        # Schedule the task to stop brainrot after 3 minutes
+        await asyncio.sleep(180)
+        await stop_brainrot()
+        await interaction.channel.send("Brainrot mode has ended.") #send message to the channel where the command was used.
+    except Exception as e:
+        print(f"Error in brainrot_command: {e}")  # Print the error
+        await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
 
-    # Schedule the task to stop brainrot after 3 minutes
-    await asyncio.sleep(180)
-    await stop_brainrot()
-    await interaction.channel.send("Brainrot mode has ended.") #send message to the channel where the command was used.
 
 
 @bot.event
@@ -191,23 +195,26 @@ async def daily_role_removal_task():
 async def takebraincells(interaction: discord.Interaction, user: discord.Member):
     executor = interaction.user
     guild = interaction.guild
+    try: # Add try and except
+        required_role = guild.get_role(DAILY_ROLE_ID)
+        if required_role not in executor.roles:
+            await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+            return
 
-    required_role = guild.get_role(DAILY_ROLE_ID)
-    if required_role not in executor.roles:
-        await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
-        return
-
-    temp_role = guild.get_role(TEMP_ROLE_ID)
-    if temp_role:
-        await user.add_roles(temp_role)
-        await interaction.response.send_message(
-            f"{user.mention} has received the braincell role for 5 minutes."
-        )
-        await asyncio.sleep(300)
-        await user.remove_roles(temp_role)
-        print(f"Removed temporary role from {user}")
-    else:
-        await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+        temp_role = guild.get_role(TEMP_ROLE_ID)
+        if temp_role:
+            await user.add_roles(temp_role)
+            await interaction.response.send_message(
+                f"{user.mention} has received the braincell role for 5 minutes."
+            )
+            await asyncio.sleep(300)
+            await user.remove_roles(temp_role)
+            print(f"Removed temporary role from {user}")
+        else:
+            await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+    except Exception as e:
+        print(f"Error in takebraincells: {e}")  # Print the error
+        await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
 
 
 
@@ -216,23 +223,26 @@ async def givebraincells(interaction: discord.Interaction, user: discord.Member)
     """Removes the temporary role from the specified user."""
     executor = interaction.user
     guild = interaction.guild
+    try: # Add try and except
+        # Check if the executor has the required role to use this command
+        required_role = guild.get_role(DAILY_ROLE_ID)
+        if required_role not in executor.roles:
+            await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
+            return
 
-    # Check if the executor has the required role to use this command
-    required_role = guild.get_role(DAILY_ROLE_ID)
-    if required_role not in executor.roles:
-        await interaction.response.send_message("You don't have permission to use this command.", ephemeral=True)
-        return
-
-    temp_role = guild.get_role(TEMP_ROLE_ID)
-    if temp_role:
-        if temp_role in user.roles:
-            await user.remove_roles(temp_role)
-            await interaction.response.send_message(f"Removed the braincell role from {user.mention}.")
-            print(f"Removed temporary role from {user}")
+        temp_role = guild.get_role(TEMP_ROLE_ID)
+        if temp_role:
+            if temp_role in user.roles:
+                await user.remove_roles(temp_role)
+                await interaction.response.send_message(f"Removed the braincell role from {user.mention}.")
+                print(f"Removed temporary role from {user}")
+            else:
+                await interaction.response.send_message(f"{user.mention} doesn't have the braincell role.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"{user.mention} doesn't have the braincell role.", ephemeral=True)
-    else:
-        await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+            await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+    except Exception as e:
+        print(f"Error in givebraincells: {e}")  # Print the error
+        await interaction.response.send_message("An error occurred while processing this command.", ephemeral=True)
 
 
 
