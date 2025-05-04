@@ -4,12 +4,12 @@ import asyncio
 import datetime
 import os
 from flask import Flask
-import threading
-import random
+import threading  # Import the threading module
+import random  # Import random
 from discord.app_commands import CommandNotFound
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
 
 # Discord settings - Double check these IDs in your Discord server!
 IMAGE_CHANNEL_ID = 1359782718426316840
@@ -46,7 +46,7 @@ def run_flask():
 
 def keep_alive():
     """Creates and starts the Flask server in a background thread."""
-    # daemon=True ensures the thread exits when the main bot process stops
+    # daemon=True ensures thethread exits when the main bot process stops
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("Keep-alive thread initiated.")
@@ -63,14 +63,24 @@ brainrot_words = [
     "gyatt",
     "mr. breast"
 ]
+brainrot_messages = [] # Store brainrot messages globally
 brainrot_task = None  # Store the task globally
 
 async def stop_brainrot():
     """Stops the brainrot mode and resets the global variable."""
     global brainrot_active
     global brainrot_task
+    global brainrot_messages # Access the global list
     brainrot_active = False
-    brainrot_task = None #clear the task
+    brainrot_task = None
+    for msg in brainrot_messages: # Delete stored messages
+        try:
+            await msg.delete()
+        except discord.NotFound:
+            print(f"Message {msg.id} not found, was probably deleted already.")
+        except Exception as e:
+            print(f"Error deleting message {msg.id}: {e}")
+    brainrot_messages.clear() # Clear the list
     print("Brainrot mode stopped.")
 
 @bot.tree.command(name="brainrot", description="Activates brainrot mode for 3 minutes.")
@@ -78,6 +88,7 @@ async def brainrot_command(interaction: discord.Interaction):
     """Activates brainrot mode."""
     global brainrot_active
     global brainrot_task
+    global brainrot_messages # Access the global message list
     try:
         # Check for the daily role here!
         daily_role = discord.utils.get(interaction.guild.roles, id=DAILY_ROLE_ID)
@@ -95,10 +106,9 @@ async def brainrot_command(interaction: discord.Interaction):
         # Create a new task and store it in the global variable
         brainrot_task = asyncio.create_task(asyncio.sleep(180)) # 3 minutes = 180 seconds
 
-        # Schedule the task to stop brainrot after 3 minutes
         await asyncio.sleep(180)
         await stop_brainrot()
-        await interaction.channel.send("Brainrot mode has ended.") #send message to the channel where the command was used.
+        await interaction.channel.send("Brainrot mode has ended.")
     except Exception as e:
         print(f"Error in brainrot_command: {e}")
         if isinstance(e, CommandNotFound):
@@ -131,6 +141,7 @@ async def on_ready():
 async def on_message(message):
     global brainrot_active
     global brainrot_words
+    global brainrot_messages
 
     print(
         f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})")
@@ -164,8 +175,7 @@ async def on_message(message):
     if brainrot_active:
         random_word = random.choice(brainrot_words)
         msg = await message.channel.send(random_word)
-        await asyncio.sleep(10)
-        await msg.delete()
+        brainrot_messages.append(msg)
 
     await bot.process_commands(message)  # Important: Keep this line!
 
@@ -262,3 +272,4 @@ if __name__ == "__main__":
     # Make sure your bot's token and startup logic is placed below this line.
     # ---------------------------------------------------------------------
     bot.run(TOKEN)
+
