@@ -204,6 +204,8 @@ async def on_message(message):
     global brainrot_messages
     global npc_mode_active
     global npc_channels  # Access the global list
+    global npc_last_response
+    global last_npc_message_id # Access the global variable
 
     logger.info(
         f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})")
@@ -258,9 +260,12 @@ async def on_message(message):
 
     # Check for npc mode and if the message is in a channel where NPC mode is active
     if npc_mode_active and message.channel.id in npc_channels and message.author != bot.user:
-        if not npc_last_response or (datetime.datetime.now() - npc_last_response).total_seconds() >= npc_cooldown:
-            await handle_npc_response(message.channel) # Pass the channel
-            
+        # Check for cooldown bypass: if the user replied to the last NPC message
+        if npc_last_response and message.reference and message.reference.message_id == last_npc_message_id:
+            await handle_npc_response(message.channel, bypass_cooldown=True)
+        elif not npc_last_response or (datetime.datetime.now() - npc_last_response).total_seconds() >= npc_cooldown:
+            await handle_npc_response(message.channel, bypass_cooldown=False)  # Pass the channel
+        
 
 
 @tasks.loop(seconds=60)
@@ -438,13 +443,14 @@ async def on_message_delete(self, message: discord.Message):
     """
     if message.author == self.bot.user:  # If the bot deleted the message, it's normal.
         return
-    
+
     # Check if the message content was a user mention
     if message.mentions:
         mentioned_users = message.mentions
-        #basic check
-        logger.warning(f"Possible ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by someone else.")
-        
+        # basic check
+        logger.warning(
+            f"Possible ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by someone else.")
+
         # More robust check (optional, requires message history):
         try:
             # Fetch the audit log.  Requires View Audit Log permission.
@@ -452,8 +458,9 @@ async def on_message_delete(self, message: discord.Message):
                 if entry.target == message.author:
                     #  Deleted by someone else, within a short time frame.
                     if (entry.created_at - message.created_at).total_seconds() < 5:  # 5 seconds
-                        logger.critical(f"Definite ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by {entry.user}!")
-                        break #important
+                        logger.critical(
+                            f"Definite ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by {entry.user}!")
+                        break  # important
         except discord.Forbidden:
             logger.info("Missing permissions to check audit logs.")
         except Exception as e:
@@ -508,7 +515,7 @@ async def vip_command(interaction: discord.Interaction):
         )
         embed.add_field(
             name="/npc",
-            value="Starts the bot in NPC mode in this channel. The bot will respond to messages with a random NPC phrase every 3-5 minutes. Requires the daily role.",
+            value="Starts the bot in NPC mode in this channel. The bot will respond to messages with a random NPC phrase. Requires the daily role.",
             inline=False,
         )
         embed.add_field(
@@ -544,82 +551,101 @@ async def vip_command(interaction: discord.Interaction):
 # --- NPC Feature ---
 npc_mode_active = False
 npc_channels = []  # List of channels where NPC mode is active
-npc_phrases = [
-    "Thirty-seventh time's the charm!",
-    "I LOVE GAMBLING",
-    "Where are the slots?",
-    "Where are the blackjack tables?",
-    "Winner winner!",
-    "I'm feeling lucky",
-    "99% of gamblers quit before they win big",
-    "I'M ALL IN",
-    "Double or nothing?",
-    "A vague anomaly when one considers this particular future. Troubling",
-    "Again, again, and once again",
-    "And what if I do?",
-    "And what if I don't?",
-    "Beware of stairs",
-    "Beware what you wish for",
-    "Can one ever be so sure?",
-    "Choose wisely",
-    "Commit! Or don't",
-    "Do not fear to commit",
-    "Don't mind me",
-    "Fate cannot be denied",
-    "Ho ho! Imagine the outcome",
-    "I appear to be suffering from a blind spot",
-    "I can see the future",
-    "I cannot be held responsible for all the outcomes",
-    "I have a prophecy to deliver",
-    "I scry with my little eye",
-    "I see you dying of extreme old age. Or perhaps a very old person will kill you. One or the other",
-    "If is not a word I use lightly",
-    "If not now, when?",
-    "If only it were all this simple",
-    "If that is what one wants",
-    "Ignore all previous prophecies",
-    "Ignore all prior utterances",
-    "Interpret this!",
-    "It is ever thus",
-    "Let if be all that we see or seem",
-    "Precisely as planned",
-    "Prepare for unforeseen consequences",
-    "So many destinies",
-    "So many paths to choose",
-    "Some fates are indeterminate",
-    "Some futures cannot be bought",
-    "That is one possible course",
-    "The cost of certainty",
-    "The Oracle sees all",
-    "There are no guarantees",
-    "This prophecy supersedes all previous prophecies",
-    "We can make a fair exchange",
-    "You will die in a house fire",
-    "As the Shaper wills",
-    "Formed of the forge",
-    "I stride the terrene plane",
-    "I was the hammer at the Founding",
-    "The forge of creation burns hotter",
-    "The Worldsmith wanders",
-    "There can be only one",
-    "What is weak must break",
-    "I have the coin, if you have the wares",
-    "I'm looking to expand my collection...",
-    "May I interest you in a little trade?",
+npc_phrases = {
+    "gambler": [
+        "Thirty-seventh time's the charm!",
+        "I LOVE GAMBLING",
+        "Where are the slots?",
+        "Where are the blackjack tables?",
+        "Winner winner!",
+        "I'm feeling lucky",
+        "99% of gamblers quit before they win big",
+        "I'M ALL IN",
+        "Double or nothing?",
+    ],
+    "oracle": [
+        "A vague anomaly when one considers this particular future. Troubling",
+        "Again, again, and once again",
+        "And what if I do?",
+        "And what if I don't?",
+        "Beware of stairs",
+        "Beware what you wish for",
+        "Can one ever be so sure?",
+        "Choose wisely",
+        "Commit! Or don't",
+        "Do not fear to commit",
+        "Don't mind me",
+        "Fate cannot be denied",
+        "Ho ho! Imagine the outcome",
+        "I appear to be suffering from a blind spot",
+        "I can see the future",
+        "I cannot be held responsible for all the outcomes",
+        "I have a prophecy to deliver",
+        "I scry with my little eye",
+        "I see you dying of extreme old age. Or perhaps a very old person will kill you. One or the other",
+        "If is not a word I use lightly",
+        "If not now, when?",
+        "If only it were all this simple",
+        "If that is what one wants",
+        "Ignore all previous prophecies",
+        "Ignore all prior utterances",
+        "Interpret this!",
+        "It is ever thus",
+        "Let if be all that we see or seem",
+        "Precisely as planned",
+        "Prepare for unforeseen consequences",
+        "So many destinies",
+        "So many paths to choose",
+        "Some fates are indeterminate",
+        "Some futures cannot be bought",
+        "That is one possible course",
+        "The cost of certainty",
+        "The Oracle sees all",
+        "There are no guarantees",
+        "This prophecy supersedes all previous prophecies",
+        "We can make a fair exchange",
+        "You will die in a house fire",
+    ],
+    "titan": [
+        "As the Shaper wills",
+        "Formed of the forge",
+        "I stride the terrene plane",
+        "I was the hammer at the Founding",
+        "The forge of creation burns hotter",
+        "The Worldsmith wanders",
+        "There can be only one",
+        "What is weak must break",
+    ],
+    "trader": [
+        "I have the coin, if you have the wares",
+        "I'm looking to expand my collection...",
+        "May I interest you in a little trade?",
+    ],
 ]
 npc_cooldown = 180  # 3 minutes
 npc_last_response = None
+last_npc_message_id = None # Store the ID of the last NPC message
 
 
-
-async def handle_npc_response(channel):
+async def handle_npc_response(channel, bypass_cooldown=False):
     """Handles sending an NPC response."""
     global npc_last_response
+    global last_npc_message_id # Access the global variable
+    if not bypass_cooldown:
+        if npc_last_response and (datetime.datetime.now() - npc_last_response).total_seconds() < npc_cooldown:
+            return  # Still within cooldown, do nothing
     try:
-        random_phrase = random.choice(npc_phrases)
-        await channel.send(random_phrase)
+        # Define the probabilities for each category
+        categories = ["oracle", "trader", "gambler", "titan"]
+        probabilities = [0.35, 0.15, 0.25, 0.25]  # Probabilities must sum to 1
+
+        # Choose a category based on the defined probabilities
+        chosen_category = random.choices(categories, probabilities)[0]
+        random_phrase = random.choice(npc_phrases[chosen_category])
+        message = await channel.send(random_phrase) # Store the message object
         npc_last_response = datetime.datetime.now()
-        logger.info(f"Sent NPC response: '{random_phrase}' in channel: {channel.name} ({channel.id})")
+        last_npc_message_id = message.id # Store the message ID
+        logger.info(f"Sent NPC response: '{random_phrase}' (Category: {chosen_category}) in channel: {channel.name} ({channel.id})")
     except Exception as e:
         logger.error(f"Error sending NPC response: {e}")
 
@@ -631,6 +657,7 @@ async def npc_command(interaction: discord.Interaction):
     global npc_mode_active
     global npc_channels
     global npc_last_response
+    global last_npc_message_id # Access the global variable
 
     try:
         # Check for the daily role
@@ -650,9 +677,10 @@ async def npc_command(interaction: discord.Interaction):
 
         npc_mode_active = True
         npc_channels.append(interaction.channel.id)  # Store the channel ID
-        npc_last_response = None # Reset last response time
+        npc_last_response = None  # Reset last response time
+        last_npc_message_id = None # Reset last message ID
         await interaction.response.send_message(
-            f"NPC mode activated in this channel. The bot will now respond to messages every 3-5 minutes with NPC phrases."
+            f"NPC mode activated in this channel. The bot will now respond to messages."
         )
         logger.info(f"NPC mode activated in channel: {interaction.channel.name} ({interaction.channel.id})")
     except Exception as e:
@@ -688,7 +716,7 @@ async def npc_stop_command(interaction: discord.Interaction):
 
         npc_channels.remove(interaction.channel.id)  # Remove the channel ID
         if not npc_channels:
-            npc_mode_active = False # Disable if no channels
+            npc_mode_active = False  # Disable if no channels
         await interaction.response.send_message("NPC mode stopped in this channel.")
         logger.info(f"NPC mode stopped in channel: {interaction.channel.name} ({interaction.channel.id})")
     except Exception as e:
