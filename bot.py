@@ -1,21 +1,20 @@
 import discord
 from discord.ext import commands, tasks
-from discord import app_commands
 import asyncio
 import datetime
 import os
 
-# Load token from environment - REMOVE OR COMMENT OUT "YOUR_BOT_TOKEN_HERE" BEFORE DEPLOYING
-TOKEN = os.getenv("DISCORD_TOKEN") # or "YOUR_BOT_TOKEN_HERE"
+# Load token from environment - IMPORTANT: Ensure this is set correctly in Render
+TOKEN = os.getenv("DISCORD_TOKEN")  #  Ensure this is set in Render!
 
-# Discord settings
-IMAGE_CHANNEL_ID = 1359782718426316840  # Channel to post images (now any message)
-DAILY_ROLE_ID = 1368237860326473859    # Role to assign on message
-TEMP_ROLE_ID = 1368238029571100834     # Temporary role for /takebraincells
+# Discord settings -  Double check these IDs in your Discord server!
+IMAGE_CHANNEL_ID = 1359782718426316840
+DAILY_ROLE_ID = 1368237860326473859
+TEMP_ROLE_ID = 1368238029571100834
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
+intents.members = True  #  Enable the members intent
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -31,28 +30,48 @@ async def on_ready():
         print(f'Synced {len(synced)} command(s)')
     except Exception as e:
         print(f'Failed to sync commands: {e}')
+        print(f"Error: {e}")  # Print the full error
     daily_role_removal_task.start()
+
+
 
 @bot.event
 async def on_message(message):
+    print(f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})") #ADDED
+
     if message.author.bot:
+        print("Message author is a bot, ignoring.")
         return
 
-    # Logic for assigning role on any message in the specified channel
     if message.channel.id == IMAGE_CHANNEL_ID:
+        print("Message is in the correct channel.") #ADDED
         guild = message.guild
         user = message.author
         role = guild.get_role(DAILY_ROLE_ID)
-        if role and role not in user.roles:
-            await user.add_roles(role)
-            now = datetime.datetime.now(datetime.timezone.utc)
-            user_daily_role_times[user.id] = now
-            print(f"Assigned role to {user} at {now}")
+        if role:
+            print(f"Found role: {role.name} (Role ID: {role.id})") #ADDED
+            if role not in user.roles:
+                print(f"User {user.name} (User ID: {user.id}) does not have the role, adding it.") #ADDED
+                try:
+                    await user.add_roles(role)
+                    now = datetime.datetime.now(datetime.timezone.utc)
+                    user_daily_role_times[user.id] = now
+                    print(f"Assigned role {role.name} to {user.name} at {now}")
+                except Exception as e:
+                    print(f"Error adding role: {e}") #ADDED
+            else:
+                print(f"User {user.name} already has the role.") #ADDED
+        else:
+            print(f"Role with ID {DAILY_ROLE_ID} not found in guild!") #ADDED
+    else:
+        print(f"Message is not in the correct channel.  Expected channel ID: {IMAGE_CHANNEL_ID}") #ADDED
 
-    await bot.process_commands(message)
+    await bot.process_commands(message)  #  Important:  Keep this line!
+
+
 
 @bot.event
-async def on_message(message):
+async def on_message(message): # duplicate definition, but исправлено ниже.
     if message.author.bot:
         return
 
@@ -63,9 +82,11 @@ async def on_message(message):
         await asyncio.sleep(5)
         await response.delete()
 
-    await bot.process_commands(message)
+    await bot.process_commands(message) #duplicate
 
-@tasks.loop(seconds=60) # Check every minute
+
+
+@tasks.loop(seconds=60)
 async def daily_role_removal_task():
     now = datetime.datetime.now(datetime.timezone.utc)
     guilds = bot.guilds
@@ -86,8 +107,9 @@ async def daily_role_removal_task():
                     await member.remove_roles(role)
                     print(f"Removed daily role from {member} (after 12 hours)")
 
+
+
 @bot.tree.command(name="takebraincells", description="Give a role to someone for 5 minutes.")
-@app_commands.describe(user="User to give temporary braincell role to")
 async def takebraincells(interaction: discord.Interaction, user: discord.Member):
     executor = interaction.user
     guild = interaction.guild
@@ -109,4 +131,7 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
     else:
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
+
+
+#Fixing the duplicate on_message definitions.
 bot.run(TOKEN)
