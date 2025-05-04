@@ -124,3 +124,4 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
 
 bot.run(TOKEN)
+
