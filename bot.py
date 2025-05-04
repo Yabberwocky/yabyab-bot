@@ -150,7 +150,9 @@ async def on_message(message):
 
     if brainrot_active:
         random_word = random.choice(brainrot_words)
-        await message.channel.send(random_word)
+        msg = await message.channel.send(random_word) # Store the message object
+        await asyncio.sleep(10)
+        await msg.delete() # Delete the stored message object
 
     await bot.process_commands(message)  # Important: Keep this line!
 
