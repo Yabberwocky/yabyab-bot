@@ -204,11 +204,6 @@ async def on_message(message):
         await asyncio.sleep(5)
         await response.delete()
 
-    if brainrot_active:
-        random_word = random.choice(brainrot_words)
-        msg = await message.channel.send(random_word)
-        brainrot_messages.append(msg)
-
     await bot.process_commands(message)  # Important: Keep this line!
 
 
