@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import os
 from flask import Flask
+import threading # Import the threading module
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
 TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
