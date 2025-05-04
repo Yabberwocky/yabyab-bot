@@ -621,7 +621,7 @@ npc_phrases = {
         "I'm looking to expand my collection...",
         "May I interest you in a little trade?",
     ],
-]
+}
 npc_cooldown = 180  # 3 minutes
 npc_last_response = None
 last_npc_message_id = None # Store the ID of the last NPC message
