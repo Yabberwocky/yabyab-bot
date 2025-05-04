@@ -76,6 +76,18 @@ if required_role not in executor.roles:
         print(f"Removed temporary role from {user}")
     else:
         await interaction.response.send_message("Temporary role not found.", ephemeral=True)
+        @bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    temp_role_id = 1368238029571100834
+    if any(role.id == temp_role_id for role in message.author.roles):
+        response = await message.channel.send(f"{message.author.mention} shut up dumb fuck")
+        await asyncio.sleep(5)
+        await response.delete()
+
+    await bot.process_commands(message)
 
 bot.run(TOKEN)
 ```
