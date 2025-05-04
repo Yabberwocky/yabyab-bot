@@ -3,21 +3,19 @@ from discord.ext import commands, tasks
 import asyncio
 import datetime
 import os
-import threading
 from flask import Flask
-import random
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
-TOKEN = os.getenv("DISCORD_TOKEN")  #  Ensure this is set in Render!
+TOKEN = os.getenv("DISCORD_TOKEN")  # Ensure this is set in Render!
 
-# Discord settings -  Double check these IDs in your Discord server!
+# Discord settings - Double check these IDs in your Discord server!
 IMAGE_CHANNEL_ID = 1359782718426316840
 DAILY_ROLE_ID = 1368237860326473859
 TEMP_ROLE_ID = 1368238029571100834
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  #  Enable the members intent
+intents.members = True  # Enable the members intent
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -104,12 +102,12 @@ async def brainrot_command(interaction: discord.Interaction):
 async def on_ready():
     print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     try:
-        # Remove the guild parameter to sync globally
-        synced = await bot.tree.sync() # Sync globally
-        print(f'Synced {len(synced)} command(s) globally')
+        # Clear all global commands first
+        bot.tree.clear_commands(guild=None)  # Pass None to clear global commands
+        await bot.tree.sync()  # Sync globally after clearing
+        print(f'Cleared and synced all commands globally')
     except Exception as e:
         print(f'Failed to sync commands: {e}')
-        print(f"Error: {e}")
     daily_role_removal_task.start()
 
 
