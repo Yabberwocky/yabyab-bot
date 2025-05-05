@@ -74,7 +74,7 @@ brainrot_words = [
     "alpha",
     "andrew tate",
     "gyatt",
-    "mr. breast"
+    "mr. beast"
 ]
 brainrot_messages = []
 brainrot_task = None
