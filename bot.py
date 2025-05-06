@@ -669,7 +669,7 @@ npc_phrases = {
 }
 npc_cooldown = 180
 npc_last_response: Optional[datetime.datetime] = None
-last_npc_message_id: Optional[int] = None  # Fix: Split the line into two
+last_npc_message_id: Optional[int] = None  # Fix: Split the line intotwo
 
 async def handle_npc_response(channel: discord.TextChannel, bypass_cooldown=False):
     """Handles sending an NPC response."""
@@ -883,7 +883,8 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                guild: discord.Guild,
+                                # Use discord.Object instead of discord.Guild
+                                guild: discord.Object,
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
@@ -917,7 +918,7 @@ async def server_setup_command(interaction: discord.Interaction,
         IMAGE_CHANNEL_ID = image_channel.id if image_channel_enabled and image_channel else None
 
         # No need to fetch the guild, we already have it as a parameter
-        guild_obj = guild
+        guild_obj = bot.get_guild(guild.id) # Fetch the guild object.
 
         # Ensure the bot can send messages in the log channel
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
