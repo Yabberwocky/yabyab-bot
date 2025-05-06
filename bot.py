@@ -657,11 +657,11 @@ npc_last_response = None
 last_npc_message_id = None
 
 
-asyncdef handle_npc_response(channel, bypass_cooldown=False):
+async def handle_npc_response(channel, bypass_cooldown=False):
     """Handles sending an NPC response."""
     global npc_last_response
     global last_npc_message_id
-    if not bypass_cooldown:
+if not bypass_cooldown:
         if npc_last_response and (datetime.datetime.now() - npc_last_response).total_seconds() < npc_cooldown:
             return
     try:
@@ -891,7 +891,7 @@ async def server_setup_command(interaction: discord.Interaction,
 
     try:
         # Set the global variables
-        GUILD_ID = guild.id # Set the Guild ID
+        GUILD_ID = guild.id  # Set the Guild ID
         DAILY_ROLE_ID = daily_role.id
         TEMP_ROLE_ID = temp_role.id
         image_channel_enabled = image_channel_toggle
