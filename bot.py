@@ -661,7 +661,7 @@ async def handle_npc_response(channel, bypass_cooldown=False):
     """Handles sending an NPC response."""
     global npc_last_response
     global last_npc_message_id
-    if not bypass_cooldown:
+    ifnot bypass_cooldown:
         if npc_last_response and (datetime.datetime.now() - npc_last_response).total_seconds() < npc_cooldown:
             return
     try:
@@ -865,7 +865,8 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                guild: discord.Guild,  # Add the guild parameter
+                                # Use discord.Object, which can represent a Guild ID.
+                                guild: discord.Object,
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
@@ -874,7 +875,7 @@ async def server_setup_command(interaction: discord.Interaction,
     Sets up the bot for your server.
 
     Parameters:
-        guild: The Discord server (guild) to configure.
+        guild: The Discord server (guild) ID to configure.
         daily_role: The role to be used as the daily role.
         temp_role: The role to be used as the temporary role.
         image_channel_toggle: Enable or disable the image channel feature.
