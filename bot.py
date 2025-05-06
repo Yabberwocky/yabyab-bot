@@ -661,7 +661,7 @@ async def handle_npc_response(channel, bypass_cooldown=False):
     """Handles sending an NPC response."""
     global npc_last_response
     global last_npc_message_id
-if not bypass_cooldown:
+    if not bypass_cooldown:
         if npc_last_response and (datetime.datetime.now() - npc_last_response).total_seconds() < npc_cooldown:
             return
     try:
