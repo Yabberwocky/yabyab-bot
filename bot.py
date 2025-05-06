@@ -668,9 +668,8 @@ npc_phrases = {
     ],
 }
 npc_cooldown = 180
-npc_last_response: Optional[datetime.datetime] = Nonelast_npc_message_id: Optional[int]= None
-
-
+npc_last_response: Optional[datetime.datetime] = None
+last_npc_message_id: Optional[int] = None  # Fix: Split the line into two
 
 async def handle_npc_response(channel: discord.TextChannel, bypass_cooldown=False):
     """Handles sending an NPC response."""
@@ -884,7 +883,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                guild: discord.Guild,  # Change to discord.Guild
+                                guild: discord.Guild,
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
