@@ -9,6 +9,7 @@ import threading
 import traceback
 from discord import app_commands
 import random
+from typing import Optional, List, Dict, Union
 
 # Load token from environment - IMPORTANT: Ensure this is set correctly in Render
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -17,24 +18,23 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 IMAGE_CHANNEL_ID = None
 DAILY_ROLE_ID = None
 TEMP_ROLE_ID = None
-GUILD_ID = None  # REMOVE THIS LINE
+GUILD_ID = None
 LOG_CHANNEL_ID = None
 VIPORIZE_ROLE_ID = None
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-intents.message_content = True
 intents.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Dictionary to store the time when a user received the daily role
-user_daily_role_times = {}
+user_daily_role_times: Dict[int, datetime.datetime] = {}
 # Store the original roles of the viporized user
-viporized_users_roles = {}
+viporized_users_roles: Dict[int, List[discord.Role]] = {}
 # Store the viporize task to be able to cancel it
-viporize_tasks = {}
+viporize_tasks: Dict[int, asyncio.Task] = {}
 # Global to hold the state of the image channel feature
 image_channel_enabled = False
 
@@ -66,10 +66,12 @@ def run_flask():
         logger.error(f"Flask keep-alive server failed: {e}")
 
 
+
 def keep_alive():
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     logger.info("Keep-alive thread initiated.")
+
 
 
 # --- Brainrot Feature ---
@@ -86,8 +88,9 @@ brainrot_words = [
     "low taper fade",
     "bazinga"
 ]
-brainrot_messages = []
-brainrot_task = None
+brainrot_messages: List[discord.Message] = []
+brainrot_task: Optional[asyncio.Task] = None
+
 
 
 async def stop_brainrot():
@@ -114,7 +117,8 @@ async def stop_brainrot():
     logger.info("Brainrot mode stopped.")
 
 
-def randomize_caps(word):
+
+def randomize_caps(word: str) -> str:
     """Randomly capitalize letters in a word."""
     result = ""
     for char in word:
@@ -123,6 +127,7 @@ def randomize_caps(word):
         else:
             result += char.lower()
     return result
+
 
 
 @bot.tree.command(name="brainrot", description="Activates brainrot mode for 3 minutes.")
@@ -181,12 +186,14 @@ async def brainrot_command(interaction: discord.Interaction):
             await interaction.followup.send("An error occurred.")
 
 
+
 async def has_daily_role(user: discord.Member) -> bool:
     """Check if a user has the daily role."""
     if DAILY_ROLE_ID is None:
         return False
     daily_role = discord.utils.get(user.guild.roles, id=DAILY_ROLE_ID)
     return daily_role in user.roles
+
 
 
 @bot.event
@@ -226,8 +233,9 @@ async def on_ready():
         daily_role_removal_task.start()
 
 
+
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     global brainrot_active
     global brainrot_words
     global brainrot_messages
@@ -294,6 +302,7 @@ async def on_message(message):
             f"Error processing command in on_message: {e}\n{traceback.format_exc()}")
 
 
+
 @tasks.loop(seconds=60)
 async def daily_role_removal_task():
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -318,6 +327,7 @@ async def daily_role_removal_task():
                             f"Removed daily role from {member} (after 12 hours)")
                     except Exception as e:
                         logger.error(f"Error removing role from {member}: {e}")
+
 
 
 @bot.tree.command(name="takebraincells", description="Give a role to someone for 5 minutes.")
@@ -355,6 +365,7 @@ async def takebraincells(interaction: discord.Interaction, user: discord.Member)
             "An error occurred while processing this command.",
             ephemeral=True
         )
+
 
 
 @bot.tree.command(name="givebraincells", description="Remove the braincell role from someone.")
@@ -395,9 +406,10 @@ async def givebraincells(
             f"Error in givebraincells: {e}\n{traceback.format_exc()}")
 
 
+
 @bot.tree.command(name="ghostping", description="Anonymously ghost pings a user.")
 @app_commands.checks.cooldown(1, 3600)  # 1 hour cooldown (3600 seconds)
-async def ghostping_command(interaction: discord.Interaction, target: discord.Member, *, reason: str = ""):
+async def ghostping_command(interaction: discord.Interaction, target: discord.Member, *, reason: Optional[str] = ""):
     """
     Anonymously ghost pings a user. The command sends a message
     mentioning the user, then deletes it, so they get a notification
@@ -458,12 +470,13 @@ async def ghostping_command(interaction: discord.Interaction, target: discord.Me
         logger.error(f"Error in ghostping_command: {e}\n{traceback.format_exc()}")
 
 
+
 @bot.event
-async def on_message_delete(self, message: discord.Message):
+async def on_message_delete(message: discord.Message):
     """
     This event listener is used to detect if a ghost ping was deleted by someone else.
     """
-    if message.author == self.bot.user:  # If the bot deleted the message, it's normal.
+    if message.author == bot.user:  # Changed from self to bot
         return
 
     # Check if the message content was a user mention
@@ -487,6 +500,7 @@ async def on_message_delete(self, message: discord.Message):
             logger.info("Missing permissions to check audit logs.")
         except Exception as e:
             logger.error(f"Error checking audit logs: {e}")
+
 
 
 @bot.tree.command(name="vip", description="Displays information about the bot and its commands.")
@@ -578,9 +592,10 @@ async def vip_command(interaction: discord.Interaction):
         )
 
 
+
 # --- NPC Feature ---
 npc_mode_active = False
-npc_channels = []
+npc_channels: List[int] = []
 npc_phrases = {
     "gambler": [
         "Thirty-seventh time's the charm!",
@@ -653,15 +668,16 @@ npc_phrases = {
     ],
 }
 npc_cooldown = 180
-npc_last_response = None
-last_npc_message_id = None
+npc_last_response: Optional[datetime.datetime] = None
+last_npc_message_id: Optional[int]= None
 
 
-async def handle_npc_response(channel, bypass_cooldown=False):
+
+async def handle_npc_response(channel: discord.TextChannel, bypass_cooldown=False):
     """Handles sending an NPC response."""
     global npc_last_response
     global last_npc_message_id
-    ifnot bypass_cooldown:
+    if not bypass_cooldown:
         if npc_last_response and (datetime.datetime.now() - npc_last_response).total_seconds() < npc_cooldown:
             return
     try:
@@ -681,6 +697,7 @@ async def handle_npc_response(channel, bypass_cooldown=False):
             f"Sent NPC response: '{random_phrase}' (Category: {chosen_category}) in channel: {channel.name} ({channel.id})")
     except Exception as e:
         logger.error(f"Error sending NPC response: {e}")
+
 
 
 @bot.tree.command(name="npc", description="Activates NPC mode in this channel.")
@@ -724,6 +741,7 @@ async def npc_command(interaction: discord.Interaction):
         )
 
 
+
 @bot.tree.command(name="npcstop", description="Stops NPC mode in this channel.")
 async def npc_stop_command(interaction: discord.Interaction):
     """Stops NPC mode in the channel where the command is used."""
@@ -761,6 +779,7 @@ async def npc_stop_command(interaction: discord.Interaction):
         )
 
 
+
 @bot.tree.command(name="viporize", description="Viporize a user for 2 minutes")
 @app_commands.checks.cooldown(1, 600)
 async def viporize_command(interaction: discord.Interaction, target: discord.Member):
@@ -793,7 +812,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
             return
 
         # Store the target user's roles
-        viporized_users_roles[target.id] = target.roles
+        viporized_users_roles[target.id] = [role for role in target.roles]  # Store a copy
         roles_to_remove = [
             role for role in target.roles if role != guild.default_role]
         await target.remove_roles(*roles_to_remove)
@@ -863,18 +882,19 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
                 f"Failed to remove viporize role after error in viporize_command: {ex}")
 
 
+
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                # Use discord.Object, which can represent a Guild ID.
                                 guild: discord.Object,
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
-                                image_channel: discord.TextChannel = None):
+                                image_channel: Optional[discord.TextChannel] = None):
     """
     Sets up the bot for your server.
 
     Parameters:
+        interaction: The interaction context.
         guild: The Discord server (guild) ID to configure.
         daily_role: The role to be used as the daily role.
         temp_role: The role to be used as the temporary role.
@@ -896,21 +916,30 @@ async def server_setup_command(interaction: discord.Interaction,
         DAILY_ROLE_ID = daily_role.id
         TEMP_ROLE_ID = temp_role.id
         image_channel_enabled = image_channel_toggle
-        if image_channel_enabled:
-            IMAGE_CHANNEL_ID = image_channel.id if image_channel else None
+        IMAGE_CHANNEL_ID = image_channel.id if image_channel_enabled and image_channel else None
+
+
+        # Get the guild object.
+        guild_obj = bot.get_guild(guild.id)
+        if not guild_obj:
+            await interaction.response.send_message(
+                f"Guild with ID {guild.id} not found.",
+                ephemeral=True
+            )
+            return
 
         # Ensure the bot can send messages in the log channel
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(
-                f"Server setup complete by {interaction.user.name}. Server: {guild.name}, Daily role: {daily_role.name}, Temp role: {temp_role.name}, Image channel: {image_channel.name if image_channel_enabled and image_channel else 'Disabled'}")
+                f"Server setup complete by {interaction.user.name}. Server: {guild_obj.name}, Daily role: {daily_role.name}, Temp role: {temp_role.name}, Image channel: {image_channel.name if image_channel_enabled and image_channel else 'Disabled'}")
 
         await interaction.response.send_message(
             "Server setup complete. The bot is now configured."
         )
         # Clear and sync commands for the specific guild.
-        bot.tree.clear_commands(guild=guild)
-        await bot.tree.sync(guild=guild)
+        bot.tree.clear_commands(guild=guild_obj)
+        await bot.tree.sync(guild=guild_obj)
 
         # Restart the daily role removal task if it's running
         if daily_role_removal_task.is_running():
@@ -925,6 +954,7 @@ async def server_setup_command(interaction: discord.Interaction,
             "An error occurred while processing this command. Check the logs.",
             ephemeral=True
         )
+
 
 
 if __name__ == "__main__":
