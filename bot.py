@@ -883,7 +883,8 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                guild: discord.Object,  # Changed to discord.Object
+                                # Removed discord.Object
+                                guild_id: str,
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
@@ -893,7 +894,7 @@ async def server_setup_command(interaction: discord.Interaction,
 
     Parameters:
         interaction: The interaction context.
-        guild: The Discord server (guild) to configure.  <-- IMPORTANT
+        guild_id: The ID of the Discord server (guild) to configure.  <-- Changed to str
         daily_role: The role to be used as the daily role.
         temp_role: The role to be used as the temporary role.
         image_channel_toggle: Enable or disable the image channel feature.
@@ -910,7 +911,7 @@ async def server_setup_command(interaction: discord.Interaction,
 
     try:
         # Set the global variables
-        GUILD_ID = guild.id
+        GUILD_ID = int(guild_id) # Convert guild_id to int
         DAILY_ROLE_ID = daily_role.id
         TEMP_ROLE_ID = temp_role.id
         image_channel_enabled = image_channel_toggle
@@ -920,7 +921,10 @@ async def server_setup_command(interaction: discord.Interaction,
             IMAGE_CHANNEL_ID = None # important: set it to None explicitly
 
         #  Fetch the guild object.
-        guild_obj = bot.get_guild(guild.id)
+        guild_obj = bot.get_guild(GUILD_ID)
+        if not guild_obj:
+            await interaction.response.send_message(f"Guild with ID {guild_id} not found.", ephemeral=True)
+            return
 
         # Ensure the bot can send messages in the log channel
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
