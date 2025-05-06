@@ -883,8 +883,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                # Use discord.Object instead of discord.Guild
-                                guild: discord.Object,
+                                guild: discord.Object,  # Changed to discord.Object
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
@@ -894,7 +893,7 @@ async def server_setup_command(interaction: discord.Interaction,
 
     Parameters:
         interaction: The interaction context.
-        guild: The Discord server (guild) to configure.
+        guild: The Discord server (guild) to configure.  <-- IMPORTANT
         daily_role: The role to be used as the daily role.
         temp_role: The role to be used as the temporary role.
         image_channel_toggle: Enable or disable the image channel feature.
@@ -915,10 +914,13 @@ async def server_setup_command(interaction: discord.Interaction,
         DAILY_ROLE_ID = daily_role.id
         TEMP_ROLE_ID = temp_role.id
         image_channel_enabled = image_channel_toggle
-        IMAGE_CHANNEL_ID = image_channel.id if image_channel_enabled and image_channel else None
+        if image_channel_enabled and image_channel:
+            IMAGE_CHANNEL_ID = image_channel.id
+        else:
+            IMAGE_CHANNEL_ID = None # important: set it to None explicitly
 
-        # No need to fetch the guild, we already have it as a parameter
-        guild_obj = bot.get_guild(guild.id) # Fetch the guild object.
+        #  Fetch the guild object.
+        guild_obj = bot.get_guild(guild.id)
 
         # Ensure the bot can send messages in the log channel
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
