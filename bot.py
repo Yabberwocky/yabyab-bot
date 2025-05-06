@@ -476,7 +476,7 @@ async def on_message_delete(message: discord.Message):
     """
     This event listener is used to detect if a ghost ping was deleted by someone else.
     """
-    if message.author == bot.user:  # Changed from self to bot
+    if message.author == bot.user:
         return
 
     # Check if the message content was a user mention
@@ -495,7 +495,7 @@ async def on_message_delete(message: discord.Message):
                     if (entry.created_at - message.created_at).total_seconds() < 5:  # 5 seconds
                         logger.critical(
                             f"Definite ghost ping detected in {message.channel.name}! Message by {message.author} mentioning: {', '.join(m.name for m in mentioned_users)} was deleted by {entry.user}!")
-                        break  # important
+                        break
         except discord.Forbidden:
             logger.info("Missing permissions to check audit logs.")
         except Exception as e:
@@ -668,8 +668,7 @@ npc_phrases = {
     ],
 }
 npc_cooldown = 180
-npc_last_response: Optional[datetime.datetime] = None
-last_npc_message_id: Optional[int]= None
+npc_last_response: Optional[datetime.datetime] = Nonelast_npc_message_id: Optional[int]= None
 
 
 
@@ -812,7 +811,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
             return
 
         # Store the target user's roles
-        viporized_users_roles[target.id] = [role for role in target.roles]  # Store a copy
+        viporized_users_roles[target.id] = [role for role in target.roles]
         roles_to_remove = [
             role for role in target.roles if role != guild.default_role]
         await target.remove_roles(*roles_to_remove)
@@ -885,7 +884,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
-                                guild: discord.Object,
+                                guild: discord.Guild,  # Change to discord.Guild
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
@@ -895,7 +894,7 @@ async def server_setup_command(interaction: discord.Interaction,
 
     Parameters:
         interaction: The interaction context.
-        guild: The Discord server (guild) ID to configure.
+        guild: The Discord server (guild) to configure.
         daily_role: The role to be used as the daily role.
         temp_role: The role to be used as the temporary role.
         image_channel_toggle: Enable or disable the image channel feature.
@@ -912,21 +911,14 @@ async def server_setup_command(interaction: discord.Interaction,
 
     try:
         # Set the global variables
-        GUILD_ID = guild.id  # Set the Guild ID
+        GUILD_ID = guild.id
         DAILY_ROLE_ID = daily_role.id
         TEMP_ROLE_ID = temp_role.id
         image_channel_enabled = image_channel_toggle
         IMAGE_CHANNEL_ID = image_channel.id if image_channel_enabled and image_channel else None
 
-
-        # Get the guild object.
-        guild_obj = bot.get_guild(guild.id)
-        if not guild_obj:
-            await interaction.response.send_message(
-                f"Guild with ID {guild.id} not found.",
-                ephemeral=True
-            )
-            return
+        # No need to fetch the guild, we already have it as a parameter
+        guild_obj = guild
 
         # Ensure the bot can send messages in the log channel
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
