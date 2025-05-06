@@ -14,18 +14,18 @@ import random
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Discord settings - Double check these IDs in your Discord server!
-IMAGE_CHANNEL_ID = None  # changed to None so that it can be set by the setup command
+IMAGE_CHANNEL_ID = None
 DAILY_ROLE_ID = None
 TEMP_ROLE_ID = None
-GUILD_ID = None  # changed to None so that it can be set by the setup command
-LOG_CHANNEL_ID = None  # Added log channel ID
-VIPORIZE_ROLE_ID = None  # Added VIPORIZE role ID
+GUILD_ID = None  # REMOVE THIS LINE
+LOG_CHANNEL_ID = None
+VIPORIZE_ROLE_ID = None
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-intents.message_content = True  # Enable message content intent
-intents.guilds = True  # Make sure the bot can see guilds
+intents.message_content = True
+intents.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -232,9 +232,9 @@ async def on_message(message):
     global brainrot_words
     global brainrot_messages
     global npc_mode_active
-    global npc_channels  # Access the global list
+    global npc_channels
     global npc_last_response
-    global last_npc_message_id  # Access the global variable
+    global last_npc_message_id
     global image_channel_enabled
     global IMAGE_CHANNEL_ID
 
@@ -498,7 +498,7 @@ async def vip_command(interaction: discord.Interaction):
         embed = discord.Embed(
             title="Bot Information and Commands",
             description="Here's a quick guide to using this bot:",
-            color=0x00ff00,  # Green color
+            color=0x00ff00,
         )
 
         # General Bot Information
@@ -551,7 +551,7 @@ async def vip_command(interaction: discord.Interaction):
         )
         embed.add_field(
             name="/serversetup",
-            value="Sets up the bot for your server.  Select the daily role, dumb fuck role, and toggle the image channel feature.",
+            value="Sets up the bot for your server.  Select the server, daily role, dumb fuck role, and toggle the image channel feature.",
             inline=False
         )
 
@@ -580,7 +580,7 @@ async def vip_command(interaction: discord.Interaction):
 
 # --- NPC Feature ---
 npc_mode_active = False
-npc_channels = []  # List of channels where NPC mode is active
+npc_channels = []
 npc_phrases = {
     "gambler": [
         "Thirty-seventh time's the charm!",
@@ -652,18 +652,18 @@ npc_phrases = {
         "May I interest you in a little trade?",
     ],
 }
-npc_cooldown = 180  # 3 minutes
+npc_cooldown = 180
 npc_last_response = None
-last_npc_message_id = None  # Store the ID of the last NPCmessage
+last_npc_message_id = None
 
 
-async def handle_npc_response(channel, bypass_cooldown=False):
+asyncdef handle_npc_response(channel, bypass_cooldown=False):
     """Handles sending an NPC response."""
     global npc_last_response
-    global last_npc_message_id  # Access the global variable
+    global last_npc_message_id
     if not bypass_cooldown:
         if npc_last_response and (datetime.datetime.now() - npc_last_response).total_seconds() < npc_cooldown:
-            return  # Still within cooldown, do nothing
+            return
     try:
         # Define the probabilities for each category
         categories = ["oracle", "trader", "gambler", "titan"]
@@ -689,7 +689,7 @@ async def npc_command(interaction: discord.Interaction):
     global npc_mode_active
     global npc_channels
     global npc_last_response
-    global last_npc_message_id  # Access the global variable
+    global last_npc_message_id
 
     try:
         # Check for the daily role
@@ -708,9 +708,9 @@ async def npc_command(interaction: discord.Interaction):
             return
 
         npc_mode_active = True
-        npc_channels.append(interaction.channel.id)  # Store the channel ID
-        npc_last_response = None  # Reset last response time
-        last_npc_message_id = None  # Reset last message ID
+        npc_channels.append(interaction.channel.id)
+        npc_last_response = None
+        last_npc_message_id = None
         await interaction.response.send_message(
             f"NPC mode activated in this channel. The bot will now respond to messages."
         )
@@ -746,9 +746,9 @@ async def npc_stop_command(interaction: discord.Interaction):
             )
             return
 
-        npc_channels.remove(interaction.channel.id)  # Remove the channel ID
+        npc_channels.remove(interaction.channel.id)
         if not npc_channels:
-            npc_mode_active = False  # Disable if no channels
+            npc_mode_active = False
         await interaction.response.send_message("NPC mode stopped in this channel.")
         logger.info(
             f"NPC mode stopped in channel: {interaction.channel.name} ({interaction.channel.id})")
@@ -762,7 +762,7 @@ async def npc_stop_command(interaction: discord.Interaction):
 
 
 @bot.tree.command(name="viporize", description="Viporize a user for 2 minutes")
-@app_commands.checks.cooldown(1, 600)  # 10 minute cooldown (600 seconds)
+@app_commands.checks.cooldown(1, 600)
 async def viporize_command(interaction: discord.Interaction, target: discord.Member):
     """
     Removes all roles from a user and gives the executor the vip role for 2 minutes
@@ -795,7 +795,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
         # Store the target user's roles
         viporized_users_roles[target.id] = target.roles
         roles_to_remove = [
-            role for role in target.roles if role != guild.default_role]  # Exclude @everyone role
+            role for role in target.roles if role != guild.default_role]
         await target.remove_roles(*roles_to_remove)
         await executor.add_roles(viporize_role)
 
@@ -837,10 +837,10 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
             restore_task = viporize_tasks[target.id]
             if not restore_task.done():
                 try:
-                    await restore_task  # Await the task if it's not done
+                    await restore_task
                 except Exception as e:
                     logger.error(f"Error while awaiting restore_task: {e}")
-            del viporize_tasks[target.id]  # Remove from the dict
+            del viporize_tasks[target.id]
     except Exception as e:
         logger.error(
             f"Error in viporize_command: {e}\n{traceback.format_exc()}")
@@ -865,6 +865,7 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
 
 @bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
 async def server_setup_command(interaction: discord.Interaction,
+                                guild: discord.Guild,  # Add the guild parameter
                                 daily_role: discord.Role,
                                 temp_role: discord.Role,
                                 image_channel_toggle: bool = True,
@@ -873,9 +874,10 @@ async def server_setup_command(interaction: discord.Interaction,
     Sets up the bot for your server.
 
     Parameters:
+        guild: The Discord server (guild) to configure.
         daily_role: The role to be used as the daily role.
         temp_role: The role to be used as the temporary role.
-        image_channel_toggle:  Enable or disable the image channel feature.
+        image_channel_toggle: Enable or disable the image channel feature.
         image_channel: The channel where users get the daily role by posting.
     """
     global DAILY_ROLE_ID, TEMP_ROLE_ID, IMAGE_CHANNEL_ID, image_channel_enabled, GUILD_ID
@@ -889,10 +891,10 @@ async def server_setup_command(interaction: discord.Interaction,
 
     try:
         # Set the global variables
+        GUILD_ID = guild.id # Set the Guild ID
         DAILY_ROLE_ID = daily_role.id
         TEMP_ROLE_ID = temp_role.id
         image_channel_enabled = image_channel_toggle
-        GUILD_ID = interaction.guild.id  # set the guild id
         if image_channel_enabled:
             IMAGE_CHANNEL_ID = image_channel.id if image_channel else None
 
@@ -900,11 +902,14 @@ async def server_setup_command(interaction: discord.Interaction,
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(
-                f"Server setup complete by {interaction.user.name}.  Daily role: {daily_role.name}, Temp role: {temp_role.name}, Image channel: {image_channel.name if image_channel_enabled and image_channel else 'Disabled'}")
+                f"Server setup complete by {interaction.user.name}. Server: {guild.name}, Daily role: {daily_role.name}, Temp role: {temp_role.name}, Image channel: {image_channel.name if image_channel_enabled and image_channel else 'Disabled'}")
 
         await interaction.response.send_message(
-            "Server setup complete.  The bot is now configured."
+            "Server setup complete. The bot is now configured."
         )
+        # Clear and sync commands for the specific guild.
+        bot.tree.clear_commands(guild=guild)
+        await bot.tree.sync(guild=guild)
 
         # Restart the daily role removal task if it's running
         if daily_role_removal_task.is_running():
@@ -916,7 +921,7 @@ async def server_setup_command(interaction: discord.Interaction,
         logger.error(
             f"Error in server_setup_command: {e}\n{traceback.format_exc()}")
         await interaction.response.send_message(
-            "An error occurred while processing this command.  Check the logs.",
+            "An error occurred while processing this command. Check the logs.",
             ephemeral=True
         )
 
