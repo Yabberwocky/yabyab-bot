@@ -14,17 +14,18 @@ import random
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Discord settings - Double check these IDs in your Discord server!
-IMAGE_CHANNEL_ID = 1359782718426316840
-DAILY_ROLE_ID = 1368237860326473859
-TEMP_ROLE_ID = 1368238029571100834
-GUILD_ID = 1200476681803137024
-LOG_CHANNEL_ID = 1362988767367135453  # Added log channel ID
-VIPORIZE_ROLE_ID = 1368644466130550935 # Added VIPORIZE role ID
+IMAGE_CHANNEL_ID = None # changed to None so that it can be set by the setup command
+DAILY_ROLE_ID = None
+TEMP_ROLE_ID = None
+GUILD_ID = None # changed to None so that it can be set by the setup command
+LOG_CHANNEL_ID = None  # Added log channel ID
+VIPORIZE_ROLE_ID = None # Added VIPORIZE role ID
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.message_content = True  # Enable message content intent
+intents.guilds = True # Make sure the bot can see guilds
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -32,6 +33,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 user_daily_role_times = {}
 # Store the original roles of the viporized user
 viporized_users_roles = {}
+# Store the viporize task to be able to cancel it
+viporize_tasks = {}
+# Global to hold the state of the image channel feature
+image_channel_enabled = False
 
 
 # --- Logging Setup ---
@@ -74,7 +79,9 @@ brainrot_words = [
     "alpha",
     "andrew tate",
     "gyatt",
-    "mr. breast"
+    "mr. beast",
+    "low taper fade",
+    "bazinga"
 ]
 brainrot_messages = []
 brainrot_task = None
@@ -172,6 +179,8 @@ async def brainrot_command(interaction: discord.Interaction):
 
 async def has_daily_role(user: discord.Member) -> bool:
     """Check if a user has the daily role."""
+    if DAILY_ROLE_ID is None:
+        return False
     daily_role = discord.utils.get(user.guild.roles, id=DAILY_ROLE_ID)
     return daily_role in user.roles
 
@@ -179,15 +188,25 @@ async def has_daily_role(user: discord.Member) -> bool:
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    guild = bot.get_guild(GUILD_ID)
-    if not guild:
-        logger.error(f"Guild with ID {GUILD_ID} not found.")
-        return
+    global GUILD_ID
+    if GUILD_ID:
+        guild = bot.get_guild(GUILD_ID)
+        if not guild:
+            logger.error(f"Guild with ID {GUILD_ID} not found.")
+            return
+    else:
+        logger.warning("GUILD_ID is not set.  The bot may not function correctly.")
 
     try:
-        bot.tree.clear_commands(guild=guild)
-        await bot.tree.sync(guild=guild)
-        logger.info(f'Cleared and synced commands for guild {guild.name} ({guild.id})')
+        if GUILD_ID:
+            guild = bot.get_guild(GUILD_ID)
+            bot.tree.clear_commands(guild=guild)
+            await bot.tree.sync(guild=guild)
+            logger.info(f'Cleared and synced commands for guild {guild.name} ({guild.id})')
+        else:
+            bot.tree.clear_commands()
+            await bot.tree.sync()
+            logger.info(f'Cleared and synced commands globally')
 
         try:
             await bot.tree.sync()
@@ -196,8 +215,9 @@ async def on_ready():
             logger.error(f"Failed to sync application commands globally: {e}")
     except Exception as e:
         logger.error(
-            f'Failed to sync commands for guild {guild.name} ({guild.id}): {e}\n{traceback.format_exc()}')
-    daily_role_removal_task.start()
+            f'Failed to sync commands: {e}\n{traceback.format_exc()}')
+    if DAILY_ROLE_ID is not None:
+        daily_role_removal_task.start()
 
 
 
@@ -210,6 +230,8 @@ async def on_message(message):
     global npc_channels  # Access the global list
     global npc_last_response
     global last_npc_message_id # Access the global variable
+    global image_channel_enabled
+    global IMAGE_CHANNEL_ID
 
     logger.info(
         f"on_message event triggered. Message from {message.author.name} in {message.channel.name} (Channel ID: {message.channel.id})")
@@ -229,7 +251,7 @@ async def on_message(message):
             logger.error(f"Error sending brainrot message: {e}")
 
     # Logic for assigning role on any message in the specified channel
-    if message.channel.id == IMAGE_CHANNEL_ID:
+    if image_channel_enabled and IMAGE_CHANNEL_ID is not None and message.channel.id == IMAGE_CHANNEL_ID:
         logger.info("Message is in the correct channel.")
         guild = message.guild
         user = message.author
@@ -249,12 +271,13 @@ async def on_message(message):
             logger.error(f"Daily role with ID {DAILY_ROLE_ID} not found in guild {guild.name}.")
 
     # Logic for replying to users with the temporary role
-    temp_role_id = 1368238029571100834
-    if any(role.id == temp_role_id for role in message.author.roles):
-        response = await message.channel.send(
-            f"{message.author.mention} shut up dumb fuck")
-        await asyncio.sleep(5)
-        await response.delete()
+    if TEMP_ROLE_ID is not None:
+        temp_role = bot.get_guild(GUILD_ID).get_role(TEMP_ROLE_ID)
+        if temp_role and temp_role in message.author.roles:
+            response = await message.channel.send(
+                f"{message.author.mention} shut up dumb fuck")
+            await asyncio.sleep(5)
+            await response.delete()
 
     try:
         await bot.process_commands(message)
@@ -524,6 +547,11 @@ async def vip_command(interaction: discord.Interaction):
             value="Removes all roles from a user and gives the executor the vip role for 2 minutes. Requires the daily role. 10 minute cooldown.",
             inline=False
         )
+        embed.add_field(
+            name="/serversetup",
+            value="Sets up the bot for your server.  Select the daily role, dumb fuck role, and toggle the image channel feature.",
+            inline=False
+        )
 
         # Daily Role Information
         embed.add_field(
@@ -625,7 +653,7 @@ npc_phrases = {
 }
 npc_cooldown = 180  # 3 minutes
 npc_last_response = None
-last_npc_message_id = None # Store the ID of the last NPC message
+last_npc_message_id = None #Store the ID of the last NPCmessage
 
 
 async def handle_npc_response(channel, bypass_cooldown=False):
@@ -638,7 +666,7 @@ async def handle_npc_response(channel, bypass_cooldown=False):
     try:
         # Define the probabilities for each category
         categories = ["oracle", "trader", "gambler", "titan"]
-        probabilities = [0.35, 0.15, 0.25, 0.25]  # Probabilities must sum to1
+        probabilities = [0.35, 0.15, 0.25, 0.25]  # Probabilities must sum to 1
 
         # Choose a category based on the defined probabilities
         chosen_category = random.choices(categories, probabilities)[0]
@@ -768,22 +796,115 @@ async def viporize_command(interaction: discord.Interaction, target: discord.Mem
         await interaction.response.send_message(f"{target.mention} has been viporized!")
         logger.info(f"{executor.name} viporized {target.name}")
 
+        async def restore_roles():
+            try:
+                # Restore roles and remove viporize role
+                if target.id in viporized_users_roles:
+                    await target.add_roles(*viporized_users_roles[target.id])
+                    del viporized_users_roles[target.id]
+                    await executor.remove_roles(viporize_role)
+                    logger.info(f"Restored roles for {target.name} and removed viporize role from {executor.name}")
+                else:
+                    await executor.remove_roles(viporize_role)
+                    logger.warning(f"Roles for {target.name} were not stored, possibly already restored. Removed viporize role from {executor.name}")
+            except Exception as e:
+                logger.error(f"Error in restore_roles: {e}")
+                # Attempt to remove the viporize role even if restoring roles fails
+                try:
+                    await executor.remove_roles(viporize_role)
+                except Exception as ex:
+                    logger.error(f"Failed to remove viporize role after restore_roles error: {ex}")
+
+
+        # Create a task for restoring roles
+        restore_task = asyncio.create_task(restore_roles())
+        viporize_tasks[target.id] = restore_task
+
         await asyncio.sleep(120)  # 2 minutes
 
-        # Restore roles and remove viporize role
-        if target.id in viporized_users_roles:
-            await target.add_roles(*viporized_users_roles[target.id])
-            del viporized_users_roles[target.id]
-            await executor.remove_roles(viporize_role)
-            logger.info(f"Restored roles for {target.name} and removed viporize role from {executor.name}")
-        else:
-            await executor.remove_roles(viporize_role)
-            logger.warning(f"Roles for {target.name} were not stored, possibly already restored. Removed viporize role from {executor.name}")
-
+        # Ensure the task is done
+        if target.id in viporize_tasks:
+            restore_task = viporize_tasks[target.id]
+            if not restore_task.done():
+                try:
+                    await restore_task # Await the task if it's not done
+                except Exception as e:
+                    logger.error(f"Error while awaiting restore_task: {e}")
+            del viporize_tasks[target.id] # Remove from the dict
     except Exception as e:
         logger.error(f"Error in viporize_command: {e}\n{traceback.format_exc()}")
         await interaction.response.send_message(
             "An error occurred while processing this command.",
+            ephemeral=True
+        )
+        # If there is an error, ensure we attempt to restore the user's roles
+        if target.id in viporized_users_roles:
+            try:
+                await target.add_roles(*viporized_users_roles[target.id])
+                del viporized_users_roles[target.id]
+            except Exception as ex:
+                logger.error(f"Failed to restore roles after error in viporize_command: {ex}")
+        try:
+            await executor.remove_roles(viporize_role)
+        except Exception as ex:
+            logger.error(f"Failed to remove viporize role after error in viporize_command: {ex}")
+
+
+
+@bot.tree.command(name="serversetup", description="Sets up the bot for your server.")
+async def server_setup_command(interaction: discord.Interaction,
+                                daily_role: discord.Role,
+                                temp_role: discord.Role,
+                                image_channel_toggle: bool = True,
+                                image_channel: discord.TextChannel = None,
+                                guild: discord.Guild = None): # added guild
+    """
+    Sets up the bot for your server.
+
+    Parameters:
+        daily_role: The role to be used as the daily role.
+        temp_role: The role to be used as the temporary role.
+        image_channel_toggle:  Enable or disable the image channel feature.
+        image_channel: The channel where users get the daily role by posting.
+    """
+    global DAILY_ROLE_ID, TEMP_ROLE_ID, IMAGE_CHANNEL_ID, image_channel_enabled, GUILD_ID
+
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "You must be an administrator to use this command.",
+            ephemeral=True
+        )
+        return
+
+    try:
+        # Set the global variables
+        DAILY_ROLE_ID = daily_role.id
+        TEMP_ROLE_ID = temp_role.id
+        image_channel_enabled = image_channel_toggle
+        GUILD_ID = interaction.guild.id # set the guild id
+        if image_channel_enabled:
+            IMAGE_CHANNEL_ID = image_channel.id if image_channel else None
+
+        # Ensure the bot can send messages in the log channel
+        log_channel = bot.get_channel(LOG_CHANNEL_ID)
+        if log_channel:
+            await log_channel.send(
+                f"Server setup complete by {interaction.user.name}.  Daily role: {daily_role.name}, Temp role: {temp_role.name}, Image channel: {image_channel.name if image_channel_enabled and image_channel else 'Disabled'}")
+
+        await interaction.response.send_message(
+            "Server setup complete.  The bot is now configured."
+        )
+
+        # Restart the daily role removal task if it's running
+        if daily_role_removal_task.is_running():
+            daily_role_removal_task.restart()
+        elif DAILY_ROLE_ID is not None:
+            daily_role_removal_task.start()
+
+    except Exception as e:
+        logger.error(f"Error in server_setup_command: {e}\n{traceback.format_exc()}")
+        await interaction.response.send_message(
+            "An error occurred while processing this command.  Check the logs.",
             ephemeral=True
         )
 
